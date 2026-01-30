@@ -1,12 +1,6 @@
 {
   "version": 2,
-  "public": true,
-  "builds": [
-    {
-      "src": "**/*",
-      "use": "@vercel/static"
-    }
-  ],
+  "outputDirectory": ".",
   "routes": [
     {
       "src": "/css/(.*)",
@@ -15,6 +9,10 @@
     {
       "src": "/js/(.*)",
       "dest": "/js/$1"
+    },
+    {
+      "src": "/assets/(.*)",
+      "dest": "/assets/$1"
     },
     {
       "src": "/(.*)",
