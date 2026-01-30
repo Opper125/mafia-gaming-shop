@@ -1,4 +1,4 @@
-// js/config.js - Configuration Settings
+// js/config.js - Configuration Settings (FIXED)
 
 const CONFIG = {
     // Telegram Bot Settings
@@ -13,28 +13,12 @@ const CONFIG = {
     JSONBIN_ACCESS_KEY: '$2a$10$tNEyDbr/ez8kUETcZBK.6OwFCcaAE4bjDV8EHQtjz3jbgjs8jqbrS',
     
     // Webapp Settings
-    WEBAPP_URL: 'https://mafia-gaming-shop.vercel.app/',
-    
-    // Bin IDs (will be set after initialization)
-    BIN_IDS: {
-        users: null,
-        categories: null,
-        products: null,
-        orders: null,
-        banners: null,
-        payments: null,
-        settings: null,
-        inputTables: null,
-        bannedUsers: null,
-        announcements: null,
-        deposits: null,
-        binRegistry: null
-    },
+    WEBAPP_URL: 'https://mafia-gamin-shop.vercel.app',
     
     // App Settings
-    INTRO_DURATION: 5000, // 5 seconds
-    BANNER_INTERVAL: 7000, // 7 seconds
-    ANNOUNCEMENT_SPEED: 2000, // 2 seconds scroll
+    INTRO_DURATION: 5000,
+    BANNER_INTERVAL: 7000,
+    ANNOUNCEMENT_SPEED: 2000,
     MAX_FAILED_ATTEMPTS: 5,
     CURRENCY: 'MMK',
     
@@ -51,8 +35,7 @@ const CONFIG = {
             textSecondary: '#A0A0B0',
             success: '#10B981',
             error: '#EF4444',
-            warning: '#F59E0B',
-            gradient: 'linear-gradient(135deg, #8B5CF6 0%, #A855F7 50%, #D946EF 100%)'
+            warning: '#F59E0B'
         },
         light: {
             primary: '#7C3AED',
@@ -65,15 +48,26 @@ const CONFIG = {
             textSecondary: '#64748B',
             success: '#059669',
             error: '#DC2626',
-            warning: '#D97706',
-            gradient: 'linear-gradient(135deg, #7C3AED 0%, #9333EA 50%, #C026D3 100%)'
+            warning: '#D97706'
         }
     }
 };
 
-// Freeze config to prevent modifications
+// Bin IDs - Separate object that can be modified
+const BIN_IDS = {
+    users: null,
+    categories: null,
+    products: null,
+    orders: null,
+    banners: null,
+    payments: null,
+    settings: null,
+    inputTables: null,
+    bannedUsers: null,
+    announcements: null,
+    deposits: null
+};
+
+// Freeze only CONFIG, not BIN_IDS
 Object.freeze(CONFIG);
-Object.freeze(CONFIG.BIN_IDS);
 Object.freeze(CONFIG.THEMES);
-Object.freeze(CONFIG.THEMES.dark);
-Object.freeze(CONFIG.THEMES.light);
