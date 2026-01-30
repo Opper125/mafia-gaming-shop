@@ -1,0 +1,13 @@
+{
+  "name": "mafia-gaming-shop",
+  "version": "1.0.0",
+  "description": "MAFIA Gaming Shop - Telegram Mini App for PUBG & MLBB Top-up",
+  "private": true,
+  "scripts": {
+    "start": "npx serve .",
+    "build": "echo 'Static site - no build needed'"
+  },
+  "keywords": ["telegram", "mini-app", "gaming", "topup", "pubg", "mlbb"],
+  "author": "MAFIA Gaming",
+  "license": "MIT"
+}
