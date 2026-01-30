@@ -4,74 +4,46 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="#0F0F1A">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="format-detection" content="telephone=no">
-    
-    <!-- Security Headers -->
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="referrer" content="strict-origin-when-cross-origin">
-    
-    <!-- SEO -->
-    <meta name="description" content="MAFIA Gaming Shop - PUBG Mobile & Mobile Legends Top-up Service">
-    <meta name="keywords" content="PUBG, MLBB, UC, Diamond, Top-up, Gaming, Myanmar">
-    <meta name="author" content="MAFIA Gaming">
-    
-    <!-- Open Graph -->
-    <meta property="og:title" content="MAFIA Gaming Shop">
-    <meta property="og:description" content="Premium Gaming Top-up Service">
-    <meta property="og:type" content="website">
-    <meta property="og:url" content="https://mafia-gamin-shop.vercel.app">
-    
     <title>MAFIA Gaming Shop</title>
     
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     
     <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Poppins:wght@500;600;700;800&display=swap" rel="stylesheet">
     
     <!-- Styles -->
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-    <!-- App Container -->
+    <!-- Main App Container -->
     <div id="app">
         <!-- Intro Screen -->
         <div id="intro" class="intro-screen"></div>
         
         <!-- Main Content -->
         <div id="main-content" class="main-content">
-            <!-- Header -->
             <header id="header" class="header"></header>
-            
-            <!-- Banner Section -->
-            <div id="banner-container" class="banner-container"></div>
-            
-            <!-- Announcement Ticker -->
-            <div id="announcement-container" class="announcement-container"></div>
-            
-            <!-- Categories -->
-            <div id="categories-container" class="categories-container"></div>
-        </div>
-        
-        <!-- Modal Container -->
-        <div id="modal" class="modal-container"></div>
-        
-        <!-- Toast Notifications -->
-        <div id="toast" class="toast-container"></div>
-        
-        <!-- Loading Overlay -->
-        <div id="loading-overlay" class="loading-overlay">
-            <div class="loading-spinner">
-                <div class="spinner"></div>
-                <p>Loading...</p>
-            </div>
+            <section id="banner-container" class="banner-container"></section>
+            <section id="announcement-container" class="announcement-container"></section>
+            <section id="categories-container" class="categories-container"></section>
         </div>
     </div>
     
+    <!-- Modal Container -->
+    <div id="modal" class="modal-container"></div>
+    
+    <!-- Toast Container -->
+    <div id="toast" class="toast-container"></div>
+    
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="loading-spinner">
+            <div class="spinner"></div>
+            <p>Loading...</p>
+        </div>
+    </div>
+
     <!-- Scripts -->
     <script src="js/config.js"></script>
     <script src="js/database.js"></script>
