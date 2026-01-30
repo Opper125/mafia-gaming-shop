@@ -13,7 +13,7 @@ const CONFIG = {
     JSONBIN_ACCESS_KEY: '$2a$10$tNEyDbr/ez8kUETcZBK.6OwFCcaAE4bjDV8EHQtjz3jbgjs8jqbrS',
     
     // Webapp Settings
-    WEBAPP_URL: 'https://mafia-gamin-shop.vercel.app',
+    WEBAPP_URL: 'https://mafia-shoping.vercel.app/',
     
     // Bin IDs (will be set after initialization)
     BIN_IDS: {
