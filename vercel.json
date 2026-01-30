@@ -1,22 +1,13 @@
 {
   "version": 2,
+  "buildCommand": null,
+  "installCommand": null,
   "outputDirectory": ".",
-  "routes": [
+  "framework": null,
+  "rewrites": [
     {
-      "src": "/css/(.*)",
-      "dest": "/css/$1"
-    },
-    {
-      "src": "/js/(.*)",
-      "dest": "/js/$1"
-    },
-    {
-      "src": "/assets/(.*)",
-      "dest": "/assets/$1"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
+      "source": "/((?!css|js|assets).*)",
+      "destination": "/index.html"
     }
   ],
   "headers": [
@@ -25,11 +16,23 @@
       "headers": [
         {
           "key": "X-Frame-Options",
-          "value": "ALLOW-FROM https://web.telegram.org"
+          "value": "SAMEORIGIN"
         },
         {
           "key": "Content-Security-Policy",
-          "value": "frame-ancestors 'self' https://web.telegram.org https://*.telegram.org"
+          "value": "frame-ancestors 'self' https://web.telegram.org https://*.telegram.org https://telegram.org"
+        },
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET, POST, PUT, DELETE, OPTIONS"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "Content-Type, Authorization, X-Master-Key, X-Access-Key"
         }
       ]
     }
