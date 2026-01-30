@@ -153,21 +153,6 @@ select {
     font-size: inherit;
     outline: none;
 }
-/* QUICK FIX - Add at the top of style.css */
-.main-content {
-    display: flex !important;
-    flex-direction: column;
-    min-height: 100vh;
-}
-
-.intro-screen {
-    display: none !important;
-}
-
-#loading-overlay {
-    display: none !important;
-}
-
 /* ==================== APP CONTAINER ==================== */
 #app {
     min-height: 100vh;
