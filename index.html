@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="my">
+<html lang="my" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -16,35 +16,701 @@
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-    <!-- Main App Container -->
+    <!-- ============================================================
+         MAIN APP CONTAINER
+         ============================================================ -->
     <div id="app">
-        <!-- Intro Screen -->
-        <div id="intro" class="intro-screen"></div>
         
-        <!-- Main Content -->
+        <!-- ========================================================
+             INTRO SCREEN (5 seconds animation)
+             ======================================================== -->
+        <div id="intro" class="intro-screen">
+            <div class="intro-container">
+                <div class="intro-background">
+                    <div class="intro-particles"></div>
+                    <div class="intro-glow"></div>
+                </div>
+                <div class="intro-content">
+                    <div class="intro-logo-wrapper">
+                        <div class="intro-logo-ring"></div>
+                        <div class="intro-logo-ring delay-1"></div>
+                        <div class="intro-logo-ring delay-2"></div>
+                        <div class="intro-logo-placeholder" id="intro-logo">🎮</div>
+                    </div>
+                    <h1 class="intro-title" id="intro-title">MAFIA Gaming Shop</h1>
+                    <p class="intro-subtitle">Premium Gaming Top-up</p>
+                    <div class="intro-loader">
+                        <div class="intro-loader-bar"></div>
+                    </div>
+                    <p class="intro-loading-text">Loading...</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- ========================================================
+             USERS DASHBOARD (Main Content)
+             ======================================================== -->
         <div id="main-content" class="main-content">
-            <header id="header" class="header"></header>
-            <section id="banner-container" class="banner-container"></section>
-            <section id="announcement-container" class="announcement-container"></section>
-            <section id="categories-container" class="categories-container"></section>
+            
+            <!-- ==================== HEADER ==================== -->
+            <header id="header" class="header">
+                <!-- Top Header Row -->
+                <div class="header-container">
+                    <div class="header-left">
+                        <div class="header-logo" id="header-logo">
+                            <span class="logo-emoji">🎮</span>
+                        </div>
+                        <div class="header-info">
+                            <h1 class="header-title" id="site-name">MAFIA Gaming Shop</h1>
+                            <p class="header-subtitle">Welcome, <span id="user-greeting">User</span>!</p>
+                        </div>
+                    </div>
+                    <div class="header-right">
+                        <div class="balance-card" id="balance-card">
+                            <div class="balance-info">
+                                <span class="balance-label">Balance</span>
+                                <span class="balance-amount" id="user-balance">0 MMK</span>
+                            </div>
+                            <button class="topup-btn" id="topup-btn">
+                                <span class="topup-icon">+</span>
+                                <span>Top Up</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- User Profile Bar -->
+                <div class="user-profile-bar">
+                    <div class="user-avatar" id="user-avatar">
+                        <span id="user-initial">U</span>
+                    </div>
+                    <div class="user-info">
+                        <span class="user-name" id="user-fullname">User Name</span>
+                        <span class="user-username" id="user-username">@username</span>
+                    </div>
+                    <div class="user-actions">
+                        <button class="icon-btn" id="history-btn" title="Order History">
+                            <span>📦</span>
+                        </button>
+                        <button class="icon-btn admin-btn" id="admin-btn" title="Admin Panel" style="display: none;">
+                            <span>⚙️</span>
+                        </button>
+                    </div>
+                </div>
+            </header>
+            
+            <!-- ==================== BANNER SLIDER ==================== -->
+            <section id="banner-container" class="banner-container">
+                <div class="banner-slider" id="banner-slider">
+                    <div class="banner-track" id="banner-track">
+                        <!-- Banners will be loaded here -->
+                    </div>
+                    <div class="banner-dots" id="banner-dots">
+                        <!-- Dots will be loaded here -->
+                    </div>
+                    <button class="banner-nav banner-prev" id="banner-prev">‹</button>
+                    <button class="banner-nav banner-next" id="banner-next">›</button>
+                </div>
+            </section>
+            
+            <!-- ==================== ANNOUNCEMENT TICKER ==================== -->
+            <section id="announcement-container" class="announcement-container">
+                <div class="announcement-bar">
+                    <div class="announcement-icon">📢</div>
+                    <div class="announcement-content">
+                        <div class="announcement-text ticker-animate" id="announcement-text">
+                            <span>🎮 MAFIA Gaming Shop မှ ကြိုဆိုပါတယ်! PUBG & MLBB UC/Diamond များကို အမြန်ဆုံး ဝယ်ယူလိုက်ပါ!</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- ==================== CATEGORIES SECTION ==================== -->
+            <section id="categories-section" class="categories-container">
+                <div class="section-header">
+                    <h2 class="section-title">
+                        <span class="section-icon">🎮</span>
+                        Games & Services
+                    </h2>
+                </div>
+                <div class="categories-grid" id="categories-grid">
+                    <!-- Categories will be loaded here -->
+                    <div class="empty-state" id="categories-empty">
+                        <div class="empty-icon">📁</div>
+                        <p>No categories available yet</p>
+                    </div>
+                </div>
+            </section>
+            
+        </div>
+        
+        <!-- ========================================================
+             CATEGORY PAGE (Products)
+             ======================================================== -->
+        <div id="category-page" class="category-page" style="display: none;">
+            <!-- Category Header -->
+            <div class="category-header">
+                <div class="category-header-bg"></div>
+                <div class="category-header-content">
+                    <div class="category-header-icon" id="category-icon">
+                        <span>🎮</span>
+                    </div>
+                    <div class="category-header-info">
+                        <h1 id="category-name">Category Name</h1>
+                        <p><span id="category-sold">0</span> sold</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Input Fields Section -->
+            <div class="input-section" id="input-section" style="display: none;">
+                <h3 class="input-section-title">📝 အချက်အလက်ဖြည့်ပါ</h3>
+                <div class="input-fields" id="input-fields">
+                    <!-- Input tables will be loaded here -->
+                </div>
+            </div>
+            
+            <!-- Products Section -->
+            <div class="products-section">
+                <h3 class="section-title">
+                    <span>🛍️</span>
+                    Products
+                </h3>
+                <div class="products-grid" id="products-grid">
+                    <!-- Products will be loaded here -->
+                    <div class="empty-state" id="products-empty">
+                        <div class="empty-icon">📦</div>
+                        <p>No products available</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Category Banner Section (Type 2) -->
+            <div class="category-banner-section" id="category-banners">
+                <!-- Category banners will be loaded here -->
+            </div>
+            
+            <!-- Buy Section (Fixed Bottom) -->
+            <div class="buy-section" id="buy-section">
+                <div class="buy-summary">
+                    <div class="buy-product-info">
+                        <span class="buy-product-name" id="buy-product-name">Select a product</span>
+                        <span class="buy-product-price" id="buy-product-price">0 MMK</span>
+                    </div>
+                </div>
+                <button class="buy-btn" id="buy-btn">
+                    <span class="buy-btn-icon">🛒</span>
+                    <span class="buy-btn-text">Buy Now</span>
+                </button>
+            </div>
+        </div>
+        
+        <!-- ========================================================
+             ADMIN PANEL
+             ======================================================== -->
+        <div id="admin-panel" class="admin-panel" style="display: none;">
+            <!-- Admin Header -->
+            <div class="admin-header">
+                <div class="admin-title">
+                    <span class="admin-icon">⚙️</span>
+                    <h1>Admin Panel</h1>
+                </div>
+                <div class="admin-user">
+                    <span>👑 <span id="admin-name">Admin</span></span>
+                </div>
+            </div>
+            
+            <!-- Admin Navigation Tabs -->
+            <div class="admin-nav" id="admin-nav">
+                <button class="admin-nav-btn active" data-tab="dashboard">
+                    <span>📊</span>
+                    <span>Dashboard</span>
+                </button>
+                <button class="admin-nav-btn" data-tab="users">
+                    <span>👥</span>
+                    <span>Users</span>
+                </button>
+                <button class="admin-nav-btn" data-tab="orders">
+                    <span>📦</span>
+                    <span>Orders</span>
+                </button>
+                <button class="admin-nav-btn" data-tab="deposits">
+                    <span>💰</span>
+                    <span>Deposits</span>
+                </button>
+                <button class="admin-nav-btn" data-tab="categories">
+                    <span>📁</span>
+                    <span>Categories</span>
+                </button>
+                <button class="admin-nav-btn" data-tab="products">
+                    <span>🛍️</span>
+                    <span>Products</span>
+                </button>
+                <button class="admin-nav-btn" data-tab="banners">
+                    <span>🖼️</span>
+                    <span>Banners</span>
+                </button>
+                <button class="admin-nav-btn" data-tab="payments">
+                    <span>💳</span>
+                    <span>Payments</span>
+                </button>
+                <button class="admin-nav-btn" data-tab="inputs">
+                    <span>📝</span>
+                    <span>Inputs</span>
+                </button>
+                <button class="admin-nav-btn" data-tab="settings">
+                    <span>⚙️</span>
+                    <span>Settings</span>
+                </button>
+                <button class="admin-nav-btn" data-tab="broadcast">
+                    <span>📢</span>
+                    <span>Broadcast</span>
+                </button>
+                <button class="admin-nav-btn" data-tab="banned">
+                    <span>🚫</span>
+                    <span>Banned</span>
+                </button>
+            </div>
+            
+            <!-- Admin Content Area -->
+            <div class="admin-content" id="admin-content">
+                
+                <!-- ===== DASHBOARD TAB ===== -->
+                <div class="admin-tab-content active" id="tab-dashboard">
+                    <div class="admin-dashboard">
+                        <h2 class="admin-section-title">📊 Dashboard Overview</h2>
+                        <div class="stats-grid" id="stats-grid">
+                            <div class="stat-card purple">
+                                <div class="stat-icon">👥</div>
+                                <div class="stat-info">
+                                    <span class="stat-value" id="stat-users">0</span>
+                                    <span class="stat-label">Total Users</span>
+                                </div>
+                            </div>
+                            <div class="stat-card gold">
+                                <div class="stat-icon">⭐</div>
+                                <div class="stat-info">
+                                    <span class="stat-value" id="stat-premium">0</span>
+                                    <span class="stat-label">Premium Users</span>
+                                </div>
+                            </div>
+                            <div class="stat-card blue">
+                                <div class="stat-icon">📦</div>
+                                <div class="stat-info">
+                                    <span class="stat-value" id="stat-orders">0</span>
+                                    <span class="stat-label">Total Orders</span>
+                                </div>
+                            </div>
+                            <div class="stat-card orange">
+                                <div class="stat-icon">⏳</div>
+                                <div class="stat-info">
+                                    <span class="stat-value" id="stat-pending-orders">0</span>
+                                    <span class="stat-label">Pending Orders</span>
+                                </div>
+                            </div>
+                            <div class="stat-card green">
+                                <div class="stat-icon">✅</div>
+                                <div class="stat-info">
+                                    <span class="stat-value" id="stat-approved">0</span>
+                                    <span class="stat-label">Approved</span>
+                                </div>
+                            </div>
+                            <div class="stat-card yellow">
+                                <div class="stat-icon">💰</div>
+                                <div class="stat-info">
+                                    <span class="stat-value" id="stat-pending-deposits">0</span>
+                                    <span class="stat-label">Pending Deposits</span>
+                                </div>
+                            </div>
+                            <div class="stat-card pink">
+                                <div class="stat-icon">🛍️</div>
+                                <div class="stat-info">
+                                    <span class="stat-value" id="stat-products">0</span>
+                                    <span class="stat-label">Products</span>
+                                </div>
+                            </div>
+                            <div class="stat-card cyan">
+                                <div class="stat-icon">📁</div>
+                                <div class="stat-info">
+                                    <span class="stat-value" id="stat-categories">0</span>
+                                    <span class="stat-label">Categories</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="revenue-section">
+                            <div class="revenue-card">
+                                <h3>💵 Total Revenue</h3>
+                                <span class="revenue-amount" id="stat-revenue">0 MMK</span>
+                            </div>
+                            <div class="revenue-card">
+                                <h3>💰 Total Deposits</h3>
+                                <span class="revenue-amount" id="stat-total-deposits">0 MMK</span>
+                            </div>
+                        </div>
+                        
+                        <div class="quick-actions">
+                            <h3>⚡ Quick Actions</h3>
+                            <div class="action-buttons">
+                                <button class="action-btn" data-action="view-orders">
+                                    <span>📦</span>
+                                    <span>View Orders</span>
+                                    <span class="badge" id="badge-orders" style="display:none;">0</span>
+                                </button>
+                                <button class="action-btn" data-action="view-deposits">
+                                    <span>💰</span>
+                                    <span>View Deposits</span>
+                                    <span class="badge" id="badge-deposits" style="display:none;">0</span>
+                                </button>
+                                <button class="action-btn" data-action="add-category">
+                                    <span>➕</span>
+                                    <span>Add Category</span>
+                                </button>
+                                <button class="action-btn" data-action="add-product">
+                                    <span>🛍️</span>
+                                    <span>Add Product</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- ===== USERS TAB ===== -->
+                <div class="admin-tab-content" id="tab-users">
+                    <div class="admin-users">
+                        <div class="admin-section-header">
+                            <h2 class="admin-section-title">👥 Users Management</h2>
+                            <span class="count-badge" id="users-count">0 users</span>
+                        </div>
+                        <div class="search-bar">
+                            <input type="text" class="search-input" id="users-search" placeholder="Search users...">
+                            <span class="search-icon">🔍</span>
+                        </div>
+                        <div class="users-list" id="users-list">
+                            <!-- Users will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- ===== ORDERS TAB ===== -->
+                <div class="admin-tab-content" id="tab-orders">
+                    <div class="admin-orders">
+                        <div class="admin-section-header">
+                            <h2 class="admin-section-title">📦 Orders Management</h2>
+                            <div class="filter-tabs" id="orders-filters">
+                                <button class="filter-btn active" data-filter="all">All</button>
+                                <button class="filter-btn" data-filter="pending">Pending</button>
+                                <button class="filter-btn" data-filter="approved">Approved</button>
+                                <button class="filter-btn" data-filter="rejected">Rejected</button>
+                            </div>
+                        </div>
+                        <div class="orders-list" id="orders-list">
+                            <!-- Orders will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- ===== DEPOSITS TAB ===== -->
+                <div class="admin-tab-content" id="tab-deposits">
+                    <div class="admin-deposits">
+                        <div class="admin-section-header">
+                            <h2 class="admin-section-title">💰 Deposits Management</h2>
+                            <div class="filter-tabs" id="deposits-filters">
+                                <button class="filter-btn active" data-filter="all">All</button>
+                                <button class="filter-btn" data-filter="pending">Pending</button>
+                                <button class="filter-btn" data-filter="approved">Approved</button>
+                                <button class="filter-btn" data-filter="rejected">Rejected</button>
+                            </div>
+                        </div>
+                        <div class="deposits-list" id="deposits-list">
+                            <!-- Deposits will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- ===== CATEGORIES TAB ===== -->
+                <div class="admin-tab-content" id="tab-categories">
+                    <div class="admin-categories">
+                        <div class="admin-section-header">
+                            <h2 class="admin-section-title">📁 Categories Management</h2>
+                            <button class="btn btn-primary" id="add-category-btn">
+                                <span>➕</span>
+                                <span>Add Category</span>
+                            </button>
+                        </div>
+                        <div class="categories-list" id="admin-categories-list">
+                            <!-- Categories will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- ===== PRODUCTS TAB ===== -->
+                <div class="admin-tab-content" id="tab-products">
+                    <div class="admin-products">
+                        <div class="admin-section-header">
+                            <h2 class="admin-section-title">🛍️ Products Management</h2>
+                            <button class="btn btn-primary" id="add-product-btn">
+                                <span>➕</span>
+                                <span>Add Product</span>
+                            </button>
+                        </div>
+                        <div class="filter-section">
+                            <select class="filter-select" id="product-category-filter">
+                                <option value="">All Categories</option>
+                            </select>
+                        </div>
+                        <div class="products-list" id="admin-products-list">
+                            <!-- Products will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- ===== BANNERS TAB ===== -->
+                <div class="admin-tab-content" id="tab-banners">
+                    <div class="admin-banners">
+                        <div class="admin-section-header">
+                            <h2 class="admin-section-title">🖼️ Banners Management</h2>
+                        </div>
+                        <div class="banner-tabs">
+                            <button class="tab-btn active" data-banner-type="type1">Type 1 - Home</button>
+                            <button class="tab-btn" data-banner-type="type2">Type 2 - Category</button>
+                        </div>
+                        
+                        <div class="banner-tab-content" id="banner-type1-content">
+                            <div class="banner-section">
+                                <div class="section-header-small">
+                                    <h3>🏠 Home Page Banners</h3>
+                                    <button class="btn btn-primary btn-sm" id="add-banner-type1">➕ Add Banner</button>
+                                </div>
+                                <p class="section-desc">Size: 2560 x 1440 pixels recommended</p>
+                                <div class="banners-grid" id="banners-type1-grid">
+                                    <!-- Type 1 banners will be loaded here -->
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="banner-tab-content" id="banner-type2-content" style="display:none;">
+                            <div class="banner-section">
+                                <div class="section-header-small">
+                                    <h3>📁 Category Page Banners</h3>
+                                    <button class="btn btn-primary btn-sm" id="add-banner-type2">➕ Add Banner</button>
+                                </div>
+                                <p class="section-desc">Banners with descriptions for category pages</p>
+                                <div class="banners-list" id="banners-type2-list">
+                                    <!-- Type 2 banners will be loaded here -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- ===== PAYMENTS TAB ===== -->
+                <div class="admin-tab-content" id="tab-payments">
+                    <div class="admin-payments">
+                        <div class="admin-section-header">
+                            <h2 class="admin-section-title">💳 Payment Methods</h2>
+                            <button class="btn btn-primary" id="add-payment-btn">
+                                <span>➕</span>
+                                <span>Add Payment</span>
+                            </button>
+                        </div>
+                        <div class="payments-list" id="payments-list">
+                            <!-- Payment methods will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- ===== INPUT TABLES TAB ===== -->
+                <div class="admin-tab-content" id="tab-inputs">
+                    <div class="admin-inputs">
+                        <div class="admin-section-header">
+                            <h2 class="admin-section-title">📝 Input Tables</h2>
+                            <button class="btn btn-primary" id="add-input-btn">
+                                <span>➕</span>
+                                <span>Add Input Field</span>
+                            </button>
+                        </div>
+                        <p class="section-desc">Input fields shown on category pages. Users must fill these before purchasing.</p>
+                        <div class="inputs-list" id="inputs-list">
+                            <!-- Input tables will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- ===== SETTINGS TAB ===== -->
+                <div class="admin-tab-content" id="tab-settings">
+                    <div class="admin-settings">
+                        <div class="admin-section-header">
+                            <h2 class="admin-section-title">⚙️ Site Settings</h2>
+                        </div>
+                        <div class="settings-form">
+                            <!-- Branding Section -->
+                            <div class="setting-section">
+                                <h3>🏷️ Branding</h3>
+                                <div class="input-group">
+                                    <label class="input-label">Site Name</label>
+                                    <input type="text" class="input-field" id="setting-site-name" placeholder="Enter site name">
+                                </div>
+                                <div class="input-group">
+                                    <label class="input-label">Site Logo</label>
+                                    <div class="file-upload-small" id="logo-upload">
+                                        <div class="icon-preview large" id="logo-preview">
+                                            <span>📤 Upload Logo</span>
+                                        </div>
+                                        <input type="file" id="logo-file" accept="image/*" hidden>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Announcement Section -->
+                            <div class="setting-section">
+                                <h3>📢 Announcement</h3>
+                                <div class="input-group">
+                                    <label class="input-label">Announcement Text (Live Ticker)</label>
+                                    <textarea class="input-field" id="setting-announcement" rows="3" placeholder="Enter announcement..."></textarea>
+                                </div>
+                                <button class="btn btn-secondary" id="save-announcement-btn">💾 Save Announcement</button>
+                            </div>
+                            
+                            <!-- Theme Section -->
+                            <div class="setting-section">
+                                <h3>🎨 Theme</h3>
+                                <div class="theme-options">
+                                    <label class="theme-option selected">
+                                        <input type="radio" name="theme" value="dark" checked>
+                                        <div class="theme-preview dark">
+                                            <span>🌙</span>
+                                            <span>Dark</span>
+                                        </div>
+                                    </label>
+                                    <label class="theme-option">
+                                        <input type="radio" name="theme" value="light">
+                                        <div class="theme-preview light">
+                                            <span>☀️</span>
+                                            <span>Light</span>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <!-- System Info -->
+                            <div class="setting-section">
+                                <h3>ℹ️ System Info</h3>
+                                <div class="info-grid">
+                                    <div class="info-item">
+                                        <span class="label">Bot Username:</span>
+                                        <span class="value" id="info-bot">@bot</span>
+                                    </div>
+                                    <div class="info-item">
+                                        <span class="label">Admin ID:</span>
+                                        <span class="value" id="info-admin-id">0</span>
+                                    </div>
+                                    <div class="info-item">
+                                        <span class="label">Webapp URL:</span>
+                                        <span class="value" id="info-url">-</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="settings-actions">
+                            <button class="btn btn-primary btn-lg" id="save-settings-btn">💾 Save All Settings</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- ===== BROADCAST TAB ===== -->
+                <div class="admin-tab-content" id="tab-broadcast">
+                    <div class="admin-broadcast">
+                        <div class="admin-section-header">
+                            <h2 class="admin-section-title">📢 Broadcast Message</h2>
+                        </div>
+                        <div class="broadcast-info">
+                            <div class="info-card">
+                                <span class="info-icon">👥</span>
+                                <span class="info-text"><span id="broadcast-user-count">0</span> users will receive this message</span>
+                            </div>
+                        </div>
+                        <div class="broadcast-form">
+                            <div class="input-group">
+                                <label class="input-label">Message *</label>
+                                <textarea class="input-field" id="broadcast-message" rows="6" placeholder="Enter your message..."></textarea>
+                            </div>
+                            <div class="input-group">
+                                <label class="input-label">Attach Image (Optional)</label>
+                                <div class="file-upload" id="broadcast-image-upload">
+                                    <div class="broadcast-image-preview" id="broadcast-image-preview">
+                                        <span>📷 Click to attach image</span>
+                                    </div>
+                                    <input type="file" id="broadcast-image-file" accept="image/*" hidden>
+                                </div>
+                                <button class="btn btn-sm btn-secondary mt-2" id="clear-broadcast-image" style="display:none;">❌ Remove Image</button>
+                            </div>
+                            <div class="broadcast-preview">
+                                <h4>Preview:</h4>
+                                <div class="preview-content" id="broadcast-preview-content">
+                                    <p class="placeholder">Your message will appear here...</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="broadcast-actions">
+                            <button class="btn btn-secondary" id="preview-broadcast-btn">👁️ Preview</button>
+                            <button class="btn btn-primary btn-lg" id="send-broadcast-btn">📤 Send to All Users</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- ===== BANNED USERS TAB ===== -->
+                <div class="admin-tab-content" id="tab-banned">
+                    <div class="admin-banned">
+                        <div class="admin-section-header">
+                            <h2 class="admin-section-title">🚫 Banned Users</h2>
+                            <span class="count-badge" id="banned-count">0 banned</span>
+                        </div>
+                        <div class="banned-list" id="banned-list">
+                            <!-- Banned users will be loaded here -->
+                            <div class="empty-state" id="banned-empty">
+                                <span>✅</span>
+                                <p>No banned users</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+            </div>
+        </div>
+        
+    </div>
+    
+    <!-- ============================================================
+         MODAL CONTAINER
+         ============================================================ -->
+    <div id="modal" class="modal-container">
+        <!-- Modals will be rendered here dynamically -->
+    </div>
+    
+    <!-- ============================================================
+         TOAST NOTIFICATIONS
+         ============================================================ -->
+    <div id="toast" class="toast-container">
+        <div class="toast-content">
+            <span class="toast-icon">ℹ️</span>
+            <span class="toast-message">Message</span>
         </div>
     </div>
     
-    <!-- Modal Container -->
-    <div id="modal" class="modal-container"></div>
-    
-    <!-- Toast Container -->
-    <div id="toast" class="toast-container"></div>
-    
-    <!-- Loading Overlay -->
+    <!-- ============================================================
+         LOADING OVERLAY
+         ============================================================ -->
     <div id="loading-overlay" class="loading-overlay">
         <div class="loading-spinner">
             <div class="spinner"></div>
-            <p>Loading...</p>
+            <p id="loading-text">Loading...</p>
         </div>
     </div>
 
-    <!-- Scripts -->
+    <!-- ============================================================
+         JAVASCRIPT FILES
+         ============================================================ -->
     <script src="js/config.js"></script>
     <script src="js/database.js"></script>
     <script src="js/telegram.js"></script>
