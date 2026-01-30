@@ -3,447 +3,75 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Gaming Top-Up</title>
-    <link rel="stylesheet" href="css/styles.css">
+    <meta name="theme-color" content="#0F0F1A">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="format-detection" content="telephone=no">
+    
+    <!-- Security Headers -->
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+    
+    <!-- SEO -->
+    <meta name="description" content="MAFIA Gaming Shop - PUBG Mobile & Mobile Legends Top-up Service">
+    <meta name="keywords" content="PUBG, MLBB, UC, Diamond, Top-up, Gaming, Myanmar">
+    <meta name="author" content="MAFIA Gaming">
+    
+    <!-- Open Graph -->
+    <meta property="og:title" content="MAFIA Gaming Shop">
+    <meta property="og:description" content="Premium Gaming Top-up Service">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://mafia-gamin-shop.vercel.app">
+    
+    <title>MAFIA Gaming Shop</title>
+    
+    <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Styles -->
+    <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-    <!-- Access Denied Screen -->
-    <div id="access-denied" class="access-denied hidden">
-        <div class="denied-content">
-            <i class="fas fa-ban"></i>
-            <h1>Access Denied</h1>
-            <p>This website can only be accessed through Telegram Mini App</p>
-            <a href="https://t.me/mafia_gamingshopbot" class="telegram-btn">
-                <i class="fab fa-telegram"></i> Open in Telegram
-            </a>
+    <!-- App Container -->
+    <div id="app">
+        <!-- Intro Screen -->
+        <div id="intro" class="intro-screen"></div>
+        
+        <!-- Main Content -->
+        <div id="main-content" class="main-content">
+            <!-- Header -->
+            <header id="header" class="header"></header>
+            
+            <!-- Banner Section -->
+            <div id="banner-container" class="banner-container"></div>
+            
+            <!-- Announcement Ticker -->
+            <div id="announcement-container" class="announcement-container"></div>
+            
+            <!-- Categories -->
+            <div id="categories-container" class="categories-container"></div>
         </div>
-    </div>
-
-    <!-- Banned Screen -->
-    <div id="banned-screen" class="banned-screen hidden">
-        <div class="banned-content">
-            <i class="fas fa-user-slash"></i>
-            <h1>Account Suspended</h1>
-            <p>Your account has been suspended. Please contact admin.</p>
-            <a href="https://t.me/OPPER101" class="contact-btn">
-                <i class="fab fa-telegram"></i> Contact Admin
-            </a>
-        </div>
-    </div>
-
-    <!-- Intro Screen -->
-    <div id="intro-screen" class="intro-screen">
-        <div class="intro-container">
-            <div class="logo-wrapper">
-                <div class="logo-glow"></div>
-                <img id="intro-logo" src="" alt="Logo" class="intro-logo">
-                <div class="logo-particles">
-                    <span></span><span></span><span></span>
-                    <span></span><span></span><span></span>
-                    <span></span><span></span><span></span>
-                </div>
-            </div>
-            <div class="intro-text">
-                <h1 id="site-name-intro">Gaming Shop</h1>
-                <div class="loading-bar">
-                    <div class="loading-progress"></div>
-                </div>
-                <p class="loading-text">Loading...</p>
+        
+        <!-- Modal Container -->
+        <div id="modal" class="modal-container"></div>
+        
+        <!-- Toast Notifications -->
+        <div id="toast" class="toast-container"></div>
+        
+        <!-- Loading Overlay -->
+        <div id="loading-overlay" class="loading-overlay">
+            <div class="loading-spinner">
+                <div class="spinner"></div>
+                <p>Loading...</p>
             </div>
         </div>
     </div>
-
-    <!-- Main App -->
-    <div id="main-app" class="main-app hidden">
-        <!-- Header -->
-        <header class="app-header">
-            <div class="header-left">
-                <img id="header-logo" src="" alt="Logo" class="header-logo">
-                <span id="site-name" class="site-name">Gaming Shop</span>
-            </div>
-            <div class="header-right">
-                <div class="balance-display" onclick="openTopup()">
-                    <div class="balance-info">
-                        <span class="balance-label">Balance</span>
-                        <span id="user-balance" class="balance-amount">0.00 MMK</span>
-                    </div>
-                    <button class="topup-btn">
-                        <i class="fas fa-plus"></i>
-                    </button>
-                </div>
-                <div class="theme-toggle" onclick="toggleTheme()">
-                    <i class="fas fa-moon" id="theme-icon"></i>
-                </div>
-            </div>
-        </header>
-
-        <!-- User Info Bar -->
-        <div class="user-info-bar">
-            <div class="user-avatar">
-                <img id="user-photo" src="" alt="User">
-                <span class="online-dot"></span>
-            </div>
-            <div class="user-details">
-                <span id="user-name" class="user-name">User</span>
-                <span id="user-username" class="user-username">@username</span>
-            </div>
-            <div class="user-badge" id="premium-badge">
-                <i class="fas fa-crown"></i> Premium
-            </div>
-        </div>
-
-        <!-- Navigation -->
-        <nav class="bottom-nav">
-            <div class="nav-item active" data-page="home" onclick="showPage('home')">
-                <i class="fas fa-home"></i>
-                <span>Home</span>
-            </div>
-            <div class="nav-item" data-page="orders" onclick="showPage('orders')">
-                <i class="fas fa-shopping-bag"></i>
-                <span>Orders</span>
-            </div>
-            <div class="nav-item" data-page="history" onclick="showPage('history')">
-                <i class="fas fa-history"></i>
-                <span>History</span>
-            </div>
-            <div class="nav-item" data-page="profile" onclick="showPage('profile')">
-                <i class="fas fa-user"></i>
-                <span>Profile</span>
-            </div>
-            <div class="nav-item admin-nav hidden" data-page="admin" onclick="showPage('admin')">
-                <i class="fas fa-cog"></i>
-                <span>Admin</span>
-            </div>
-        </nav>
-
-        <!-- Pages Container -->
-        <main class="pages-container">
-            <!-- Home Page -->
-            <section id="page-home" class="page active">
-                <!-- Banner Slider -->
-                <div class="banner-slider">
-                    <div class="banner-container" id="banner-container">
-                        <!-- Banners will be loaded here -->
-                    </div>
-                    <div class="banner-dots" id="banner-dots"></div>
-                </div>
-
-                <!-- Live Announcement -->
-                <div class="live-announcement">
-                    <div class="live-badge">
-                        <span class="live-dot"></span>
-                        LIVE
-                    </div>
-                    <div class="announcement-marquee">
-                        <div class="marquee-content" id="announcement-text">
-                            Welcome to Gaming Shop! Best prices for game top-ups!
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Categories -->
-                <div class="section-header">
-                    <h2><i class="fas fa-gamepad"></i> Categories</h2>
-                </div>
-                <div class="categories-grid" id="categories-grid">
-                    <!-- Categories will be loaded here -->
-                </div>
-            </section>
-
-            <!-- Orders Page -->
-            <section id="page-orders" class="page">
-                <div class="page-header">
-                    <h2><i class="fas fa-shopping-bag"></i> My Orders</h2>
-                </div>
-                <div class="orders-tabs">
-                    <button class="tab-btn active" onclick="filterOrders('all')">All</button>
-                    <button class="tab-btn" onclick="filterOrders('pending')">Pending</button>
-                    <button class="tab-btn" onclick="filterOrders('approved')">Approved</button>
-                    <button class="tab-btn" onclick="filterOrders('rejected')">Rejected</button>
-                </div>
-                <div class="orders-list" id="orders-list">
-                    <!-- Orders will be loaded here -->
-                </div>
-            </section>
-
-            <!-- History Page -->
-            <section id="page-history" class="page">
-                <div class="page-header">
-                    <h2><i class="fas fa-history"></i> Transaction History</h2>
-                </div>
-                <div class="history-tabs">
-                    <button class="tab-btn active" onclick="filterHistory('all')">All</button>
-                    <button class="tab-btn" onclick="filterHistory('topup')">Top-ups</button>
-                    <button class="tab-btn" onclick="filterHistory('purchase')">Purchases</button>
-                </div>
-                <div class="history-list" id="history-list">
-                    <!-- History will be loaded here -->
-                </div>
-            </section>
-
-            <!-- Profile Page -->
-            <section id="page-profile" class="page">
-                <div class="profile-header">
-                    <div class="profile-avatar">
-                        <img id="profile-photo" src="" alt="Profile">
-                        <div class="avatar-badge" id="profile-premium-badge">
-                            <i class="fas fa-crown"></i>
-                        </div>
-                    </div>
-                    <h2 id="profile-name">User Name</h2>
-                    <p id="profile-username">@username</p>
-                </div>
-                <div class="profile-stats">
-                    <div class="stat-item">
-                        <span class="stat-value" id="total-orders">0</span>
-                        <span class="stat-label">Orders</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-value" id="total-spent">0 MMK</span>
-                        <span class="stat-label">Spent</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-value" id="member-since">-</span>
-                        <span class="stat-label">Member</span>
-                    </div>
-                </div>
-                <div class="profile-menu">
-                    <div class="menu-item" onclick="openTopup()">
-                        <i class="fas fa-wallet"></i>
-                        <span>Top-up Balance</span>
-                        <i class="fas fa-chevron-right"></i>
-                    </div>
-                    <div class="menu-item" onclick="showPage('orders')">
-                        <i class="fas fa-shopping-bag"></i>
-                        <span>My Orders</span>
-                        <i class="fas fa-chevron-right"></i>
-                    </div>
-                    <div class="menu-item" onclick="showPage('history')">
-                        <i class="fas fa-history"></i>
-                        <span>Transaction History</span>
-                        <i class="fas fa-chevron-right"></i>
-                    </div>
-                    <div class="menu-item" onclick="openSettings()">
-                        <i class="fas fa-cog"></i>
-                        <span>Settings</span>
-                        <i class="fas fa-chevron-right"></i>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Admin Page -->
-            <section id="page-admin" class="page">
-                <div class="admin-verify hidden" id="admin-verify">
-                    <div class="verify-content">
-                        <i class="fas fa-shield-alt"></i>
-                        <h2>Admin Verification</h2>
-                        <p>Enter your Telegram Two-Step Password</p>
-                        <input type="password" id="admin-password" placeholder="Password">
-                        <button onclick="verifyAdmin()" class="verify-btn">
-                            <i class="fas fa-unlock"></i> Verify
-                        </button>
-                    </div>
-                </div>
-                <div class="admin-dashboard hidden" id="admin-dashboard">
-                    <!-- Admin content will be loaded -->
-                </div>
-            </section>
-
-            <!-- Category Page -->
-            <section id="page-category" class="page">
-                <div class="category-header">
-                    <button class="back-btn" onclick="showPage('home')">
-                        <i class="fas fa-arrow-left"></i>
-                    </button>
-                    <h2 id="category-title">Category</h2>
-                </div>
-                
-                <!-- Input Tables -->
-                <div class="input-tables" id="input-tables">
-                    <!-- Input fields will be loaded here -->
-                </div>
-
-                <!-- Products Grid -->
-                <div class="products-grid" id="products-grid">
-                    <!-- Products will be loaded here -->
-                </div>
-
-                <!-- Category Banner -->
-                <div class="category-banner" id="category-banner">
-                    <!-- Category specific banner -->
-                </div>
-
-                <!-- Category Info -->
-                <div class="category-info" id="category-info">
-                    <!-- Category description -->
-                </div>
-            </section>
-        </main>
-    </div>
-
-    <!-- Modals -->
-    <!-- Top-up Modal -->
-    <div class="modal hidden" id="topup-modal">
-        <div class="modal-overlay" onclick="closeModal('topup-modal')"></div>
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3><i class="fas fa-wallet"></i> Top-up Balance</h3>
-                <button class="close-btn" onclick="closeModal('topup-modal')">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <div class="modal-body">
-                <div class="amount-input">
-                    <label>Amount (MMK)</label>
-                    <input type="number" id="topup-amount" placeholder="Enter amount" min="1000">
-                </div>
-                <div class="payment-methods" id="payment-methods">
-                    <!-- Payment methods will be loaded -->
-                </div>
-                <div class="payment-details hidden" id="payment-details">
-                    <div class="payment-info">
-                        <img id="payment-icon" src="" alt="Payment">
-                        <div class="payment-text">
-                            <h4 id="payment-name">Payment Name</h4>
-                            <p id="payment-address">Address</p>
-                            <p id="payment-receiver">Receiver Name</p>
-                            <p id="payment-note" class="note">Note</p>
-                        </div>
-                    </div>
-                    <div class="receipt-upload">
-                        <label>Upload Receipt</label>
-                        <div class="upload-area" onclick="document.getElementById('receipt-file').click()">
-                            <i class="fas fa-cloud-upload-alt"></i>
-                            <span>Click to upload receipt</span>
-                            <input type="file" id="receipt-file" accept="image/*" hidden onchange="previewReceipt(this)">
-                        </div>
-                        <div class="receipt-preview hidden" id="receipt-preview">
-                            <img id="receipt-image" src="" alt="Receipt">
-                            <button onclick="removeReceipt()"><i class="fas fa-times"></i></button>
-                        </div>
-                    </div>
-                    <button class="submit-topup-btn" onclick="submitTopup()">
-                        <i class="fas fa-paper-plane"></i> Submit Top-up Request
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Product Modal -->
-    <div class="modal hidden" id="product-modal">
-        <div class="modal-overlay" onclick="closeModal('product-modal')"></div>
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 id="product-modal-title">Product</h3>
-                <button class="close-btn" onclick="closeModal('product-modal')">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <div class="modal-body">
-                <div class="product-detail">
-                    <img id="product-detail-icon" src="" alt="Product">
-                    <div class="product-info">
-                        <h4 id="product-detail-name">Product Name</h4>
-                        <div class="product-price">
-                            <span class="original-price hidden" id="product-original-price"></span>
-                            <span class="current-price" id="product-current-price">0 MMK</span>
-                            <span class="discount-badge hidden" id="product-discount-badge">-0%</span>
-                        </div>
-                        <div class="delivery-time" id="product-delivery">
-                            <i class="fas fa-clock"></i>
-                            <span>Instant Delivery</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="input-summary" id="input-summary">
-                    <!-- Input summary will be shown here -->
-                </div>
-                <div class="balance-summary">
-                    <div class="summary-row">
-                        <span>Your Balance:</span>
-                        <span id="modal-balance">0 MMK</span>
-                    </div>
-                    <div class="summary-row">
-                        <span>Product Price:</span>
-                        <span id="modal-price">0 MMK</span>
-                    </div>
-                    <div class="summary-row total">
-                        <span>Remaining:</span>
-                        <span id="modal-remaining">0 MMK</span>
-                    </div>
-                </div>
-                <button class="buy-btn" id="buy-btn" onclick="confirmPurchase()">
-                    <i class="fas fa-shopping-cart"></i> Buy Now
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Confirm Purchase Modal -->
-    <div class="modal hidden" id="confirm-modal">
-        <div class="modal-overlay"></div>
-        <div class="modal-content confirm-content">
-            <div class="confirm-icon">
-                <i class="fas fa-lock"></i>
-            </div>
-            <h3>Confirm Purchase</h3>
-            <p>Please verify with your Telegram OTP or Two-Step Password</p>
-            <div class="otp-input">
-                <input type="text" id="otp-code" maxlength="6" placeholder="Enter 6-digit code">
-            </div>
-            <p class="otp-note">Check your Telegram for OTP code</p>
-            <div class="confirm-buttons">
-                <button class="cancel-btn" onclick="closeModal('confirm-modal')">Cancel</button>
-                <button class="confirm-btn" onclick="processPurchase()">Confirm</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Success Modal -->
-    <div class="modal hidden" id="success-modal">
-        <div class="modal-overlay" onclick="closeModal('success-modal')"></div>
-        <div class="modal-content success-content">
-            <div class="success-animation">
-                <div class="success-circle">
-                    <i class="fas fa-check"></i>
-                </div>
-            </div>
-            <h3>Success!</h3>
-            <p id="success-message">Your order has been placed successfully.</p>
-            <button class="ok-btn" onclick="closeModal('success-modal')">OK</button>
-        </div>
-    </div>
-
-    <!-- Error Modal -->
-    <div class="modal hidden" id="error-modal">
-        <div class="modal-overlay" onclick="closeModal('error-modal')"></div>
-        <div class="modal-content error-content">
-            <div class="error-animation">
-                <div class="error-circle">
-                    <i class="fas fa-times"></i>
-                </div>
-            </div>
-            <h3>Error!</h3>
-            <p id="error-message">Something went wrong.</p>
-            <button class="ok-btn" onclick="closeModal('error-modal')">OK</button>
-        </div>
-    </div>
-
-    <!-- Loading Overlay -->
-    <div class="loading-overlay hidden" id="loading-overlay">
-        <div class="loading-spinner">
-            <div class="spinner"></div>
-            <p id="loading-text">Loading...</p>
-        </div>
-    </div>
-
-    <!-- Toast Container -->
-    <div class="toast-container" id="toast-container"></div>
-
+    
     <!-- Scripts -->
     <script src="js/config.js"></script>
     <script src="js/database.js"></script>
