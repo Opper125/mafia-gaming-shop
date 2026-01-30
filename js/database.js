@@ -2,25 +2,33 @@
 // DATABASE MANAGEMENT - JSONBin.io Integration
 // ============================================
 
+// ============================================
+// DATABASE CONFIGURATION - Auto Generated
+// Generated: 1/31/2026, 12:59:53 AM
+// ============================================
+
 const Database = {
-        // JSONBin.io Configuration
-        API_URL: 'https://api.jsonbin.io/v3',
-        MASTER_KEY: '$2a$10$nweVi.eOGDsyC7uEsN/OxeLcIr8uhyN8x86AiIo8koJ.B7MX1I5Bu',
-        ACCESS_KEY: '$2a$10$tNEyDbr/ez8kUETcZBK.6OwFCcaAE4bjDV8EHQtjz3jbgjs8jqbrS',
-        
-        // Bin IDs - ဒီနေရာမှာ ထည့်ပါ
-        BINS: {
-            users: 'YOUR_USERS_BIN_ID',
-            categories: 'YOUR_CATEGORIES_BIN_ID',
-            products: 'YOUR_PRODUCTS_BIN_ID',
-            orders: 'YOUR_ORDERS_BIN_ID',
-            topups: 'YOUR_TOPUPS_BIN_ID',
-            banners: 'YOUR_BANNERS_BIN_ID',
-            payments: 'YOUR_PAYMENTS_BIN_ID',
-            inputTables: 'YOUR_INPUT_TABLES_BIN_ID',
-            settings: 'YOUR_SETTINGS_BIN_ID',
-            bannedUsers: 'YOUR_BANNED_USERS_BIN_ID',
-        },
+    // JSONBin.io Configuration
+    API_URL: 'https://api.jsonbin.io/v3',
+    MASTER_KEY: '$2a$10$nweVi.eOGDsyC7uEsN/OxeLcIr8uhyN8x86AiIo8koJ.B7MX1I5Bu',
+    ACCESS_KEY: '$2a$10$tNEyDbr/ez8kUETcZBK.6OwFCcaAE4bjDV8EHQtjz3jbgjs8jqbrS',
+    
+    // Bin IDs - Auto Generated
+    BINS: {
+        users: '697cf882d0ea881f4093c727',
+        categories: '697cf882ae596e708f043234',
+        products: '697cf883d0ea881f4093c72d',
+        orders: '697cf883ae596e708f043237',
+        topups: '697cf884ae596e708f04323a',
+        banners: '697cf884ae596e708f04323d',
+        payments: '697cf885ae596e708f04323f',
+        inputTables: '697cf88643b1c97be9585957',
+        settings: '697cf88743b1c97be958595a',
+        bannedUsers: '697cf887ae596e708f043247',
+    },
+    
+    // ... rest of database.js code
+};
     
     // Local cache
     cache: {},
