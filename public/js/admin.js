@@ -1,3 +1,6 @@
+import { Toast } from "@/components/ui/toast"
+import { Loading } from "@/components/ui/loading"
+import { Modal } from "@/components/ui/modal"
 /* ============================================
    MAFIA GAMING SHOP - ADMIN PANEL
    Version: 3.0.0 (JSONBin Integration)
@@ -183,7 +186,7 @@ const JSONBinDB = {
         return result.metadata.id;
     },
     
-    // Read data from bin
+    // Read data from bin via Vercel API
     async read(binType) {
         const binId = this.binIds[binType];
         
@@ -193,18 +196,20 @@ const JSONBinDB = {
         }
         
         try {
-            const response = await fetch(`${CONFIG.JSONBIN.BASE_URL}/b/${binId}/latest`, {
-                headers: {
-                    'X-Master-Key': CONFIG.JSONBIN.MASTER_KEY
-                }
-            });
+            // Use Vercel API route based on binType
+            let endpoint = '/api/products';
+            if (binType === 'categories') endpoint = '/api/categories';
+            else if (binType === 'orders') endpoint = '/api/orders';
+            else if (binType === 'users') endpoint = '/api/users';
+            
+            const response = await fetch(`${endpoint}?binId=${binId}`);
             
             if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
+                throw new Error(`API HTTP ${response.status}`);
             }
             
             const data = await response.json();
-            return data.record;
+            return Array.isArray(data) ? data : (data.record || this.defaultData[binType]);
             
         } catch (error) {
             console.error(`Read error for ${binType}:`, error);
@@ -215,7 +220,7 @@ const JSONBinDB = {
         }
     },
     
-    // Write data to bin
+    // Write data to bin via Vercel API
     async write(binType, data) {
         const binId = this.binIds[binType];
         
@@ -227,17 +232,25 @@ const JSONBinDB = {
         }
         
         try {
-            const response = await fetch(`${CONFIG.JSONBIN.BASE_URL}/b/${binId}`, {
-                method: 'PUT',
+            // Use Vercel API route based on binType
+            let endpoint = '/api/products';
+            if (binType === 'categories') endpoint = '/api/categories';
+            else if (binType === 'orders') endpoint = '/api/orders';
+            else if (binType === 'users') endpoint = '/api/users';
+            
+            const response = await fetch(endpoint, {
+                method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'X-Master-Key': CONFIG.JSONBIN.MASTER_KEY
+                    'Content-Type': 'application/json'
                 },
-                body: JSON.stringify(data)
+                body: JSON.stringify({
+                    binId: binId,
+                    products: data  // Generic key used by API
+                })
             });
             
             if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
+                throw new Error(`API HTTP ${response.status}`);
             }
             
             // Also save to localStorage for faster access
