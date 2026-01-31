@@ -27,6 +27,6 @@
     "ADMIN_USERNAME": "OPPER101",
     "JSONBIN_MASTER_KEY": "$2a$10$nweVi.eOGDsyC7uEsN/OxeLcIr8uhyN8x86AiIo8koJ.B7MX1I5Bu",
     "JSONBIN_ACCESS_KEY": "$2a$10$tNEyDbr/ez8kUETcZBK.6OwFCcaAE4bjDV8EHQtjz3jbgjs8jqbrS",
-    "WEBAPP_URL": "https://mafia-gamin-shop.vercel.app"
+    "WEBAPP_URL": "https://mafia-gaming-shop.vercel.app"
   }
 }
