@@ -1,10 +1,15 @@
 /* ============================================
    USERS API
-   Mafia Gaming Shop
+   Mafia Gaming Shop - Fixed for Real-Time Sync
    ============================================ */
 
 const JSONBIN_API = 'https://api.jsonbin.io/v3';
 const MASTER_KEY = process.env.JSONBIN_MASTER_KEY || '$2a$10$nweVi.eOGDsyC7uEsN/OxeLcIr8uhyN8x86AiIo8koJ.B7MX1I5Bu';
+
+// Helper to ensure data is array
+function ensureArray(data) {
+    return Array.isArray(data) ? data : [];
+}
 
 module.exports = async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -28,8 +33,12 @@ module.exports = async (req, res) => {
                 headers: { 'X-Master-Key': MASTER_KEY }
             });
             
+            if (!response.ok) {
+                return res.status(response.status).json({ error: `JSONBin error: ${response.status}` });
+            }
+            
             const data = await response.json();
-            return res.status(200).json(data.record || []);
+            return res.status(200).json(ensureArray(data.record));
         }
 
         // POST - Create/Update user
@@ -42,17 +51,21 @@ module.exports = async (req, res) => {
 
             // Update entire users array
             if (users) {
+                const validated = ensureArray(users);
                 const response = await fetch(`${JSONBIN_API}/b/${binId}`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
                         'X-Master-Key': MASTER_KEY
                     },
-                    body: JSON.stringify(users)
+                    body: JSON.stringify(validated)
                 });
                 
-                const data = await response.json();
-                return res.status(200).json({ success: true, data });
+                if (!response.ok) {
+                    return res.status(500).json({ error: 'Failed to update users' });
+                }
+                
+                return res.status(200).json({ success: true });
             }
 
             // Add/Update single user
@@ -62,8 +75,12 @@ module.exports = async (req, res) => {
                     headers: { 'X-Master-Key': MASTER_KEY }
                 });
                 
+                if (!getResponse.ok) {
+                    return res.status(500).json({ error: 'Failed to fetch users' });
+                }
+                
                 const getData = await getResponse.json();
-                let currentUsers = getData.record || [];
+                let currentUsers = ensureArray(getData.record);
 
                 const existingIndex = currentUsers.findIndex(u => u.id === user.id);
                 
@@ -82,8 +99,11 @@ module.exports = async (req, res) => {
                     body: JSON.stringify(currentUsers)
                 });
                 
-                const updateData = await updateResponse.json();
-                return res.status(200).json({ success: true, data: updateData });
+                if (!updateResponse.ok) {
+                    return res.status(500).json({ error: 'Failed to save user' });
+                }
+                
+                return res.status(200).json({ success: true });
             }
 
             return res.status(400).json({ error: 'User data required' });
@@ -102,8 +122,12 @@ module.exports = async (req, res) => {
                 headers: { 'X-Master-Key': MASTER_KEY }
             });
             
+            if (!getResponse.ok) {
+                return res.status(500).json({ error: 'Failed to fetch users' });
+            }
+            
             const getData = await getResponse.json();
-            let users = getData.record || [];
+            let users = ensureArray(getData.record);
 
             const userIndex = users.findIndex(u => u.id == userId);
             
@@ -131,7 +155,10 @@ module.exports = async (req, res) => {
                 body: JSON.stringify(users)
             });
             
-            const updateData = await updateResponse.json();
+            if (!updateResponse.ok) {
+                return res.status(500).json({ error: 'Failed to update user balance' });
+            }
+            
             return res.status(200).json({ 
                 success: true, 
                 balance: users[userIndex].balance 
