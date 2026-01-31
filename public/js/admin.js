@@ -1,6 +1,6 @@
 /* ============================================
    MAFIA GAMING SHOP - ADMIN PANEL
-   Version: 2.0.0 (Fixed)
+   Version: 2.0.1 (Fixed Duplicate Error)
    ============================================ */
 
 // ============================================
@@ -50,10 +50,11 @@ const AdminState = {
 };
 
 // ============================================
-// Storage Helper
+// Admin Storage Helper (with prefix)
+// Using different name to avoid conflict with utils.js
 // ============================================
 
-const Storage = {
+const AdminStorage = {
     prefix: 'mafia_',
     
     set(key, value) {
@@ -86,159 +87,17 @@ const Storage = {
 };
 
 // ============================================
-// Toast Notification
+// Use Toast, Loading, Modal, Format, FileUpload from utils.js
+// They are already loaded before admin.js
 // ============================================
 
-const Toast = {
-    container: null,
-    
-    init() {
-        this.container = document.getElementById('admin-toast-container');
-        if (!this.container) {
-            this.container = document.createElement('div');
-            this.container.className = 'toast-container';
-            this.container.id = 'admin-toast-container';
-            document.body.appendChild(this.container);
-        }
-    },
-    
-    show(type, title, message, duration = 4000) {
-        if (!this.container) this.init();
-        
-        const icons = {
-            success: 'fa-check-circle',
-            error: 'fa-times-circle',
-            warning: 'fa-exclamation-triangle',
-            info: 'fa-info-circle'
-        };
-        
-        const toast = document.createElement('div');
-        toast.className = `toast ${type}`;
-        toast.innerHTML = `
-            <div class="toast-icon"><i class="fas ${icons[type] || icons.info}"></i></div>
-            <div class="toast-content">
-                <div class="toast-title">${title}</div>
-                <div class="toast-message">${message}</div>
-            </div>
-            <button class="toast-close"><i class="fas fa-times"></i></button>
-        `;
-        
-        toast.querySelector('.toast-close').onclick = () => toast.remove();
-        this.container.appendChild(toast);
-        
-        if (duration > 0) {
-            setTimeout(() => {
-                toast.classList.add('toast-exit');
-                setTimeout(() => toast.remove(), 300);
-            }, duration);
-        }
-    },
-    
-    success(title, msg) { this.show('success', title, msg); },
-    error(title, msg) { this.show('error', title, msg); },
-    warning(title, msg) { this.show('warning', title, msg); },
-    info(title, msg) { this.show('info', title, msg); }
-};
-
-// ============================================
-// Loading Overlay
-// ============================================
-
-const Loading = {
-    el: null,
-    
-    show(text = 'Loading...') {
-        this.el = document.getElementById('loading-overlay');
-        if (this.el) {
-            const textEl = this.el.querySelector('#loading-text');
-            if (textEl) textEl.textContent = text;
-            this.el.classList.remove('hidden');
-        }
-    },
-    
-    hide() {
-        if (this.el) this.el.classList.add('hidden');
-    }
-};
-
-// ============================================
-// Modal Helper
-// ============================================
-
-const Modal = {
-    open(id) {
-        const modal = document.getElementById(id);
-        if (modal) {
-            modal.classList.add('active');
-            document.body.style.overflow = 'hidden';
-        }
-    },
-    
-    close(id) {
-        const modal = document.getElementById(id);
-        if (modal) {
-            modal.classList.remove('active');
-            document.body.style.overflow = '';
-        }
-    },
-    
-    closeAll() {
-        document.querySelectorAll('.modal.active').forEach(m => m.classList.remove('active'));
-        document.body.style.overflow = '';
-    }
-};
-
-// ============================================
-// Format Helpers
-// ============================================
-
-const Format = {
-    currency(amount, currency = 'MMK') {
-        return `${Number(amount || 0).toLocaleString()} ${currency}`;
-    },
-    
-    date(dateStr, type = 'short') {
-        if (!dateStr) return '-';
-        const d = new Date(dateStr);
-        if (type === 'short') {
-            return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-        } else if (type === 'datetime') {
-            return d.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-        } else if (type === 'relative') {
-            const now = new Date();
-            const diff = now - d;
-            const mins = Math.floor(diff / 60000);
-            const hours = Math.floor(diff / 3600000);
-            const days = Math.floor(diff / 86400000);
-            if (mins < 1) return 'Just now';
-            if (mins < 60) return `${mins}m ago`;
-            if (hours < 24) return `${hours}h ago`;
-            if (days < 7) return `${days}d ago`;
-            return this.date(dateStr, 'short');
-        }
-        return d.toLocaleDateString();
-    },
-    
-    truncate(str, len = 50) {
-        if (!str) return '';
-        return str.length > len ? str.substring(0, len) + '...' : str;
-    }
-};
-
-// ============================================
-// File Upload Helper
-// ============================================
-
-const FileUpload = {
-    toBase64(file) {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result);
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-        });
-    }
-};
+// Initialize Toast if not already done
+if (typeof Toast !== 'undefined' && Toast.init) {
+    // Toast is available from utils.js
+    console.log('✅ Using Toast from utils.js');
+} else {
+    console.warn('⚠️ Toast not found in utils.js');
+}
 
 // ============================================
 // Admin Panel Class
@@ -254,7 +113,9 @@ class AdminPanel {
         
         try {
             // Step 1: Initialize Toast
-            Toast.init();
+            if (typeof Toast !== 'undefined' && Toast.init) {
+                Toast.init();
+            }
             
             // Step 2: Check Telegram WebApp
             if (!window.Telegram?.WebApp) {
@@ -382,18 +243,18 @@ class AdminPanel {
     async loadAllData() {
         console.log('📦 Loading all data...');
         
-        // Load from localStorage
-        AdminState.users = Storage.get('users', []);
-        AdminState.orders = Storage.get('orders', []);
-        AdminState.topupRequests = Storage.get('topupRequests', []);
-        AdminState.categories = Storage.get('categories', []);
-        AdminState.products = Storage.get('products', []);
-        AdminState.payments = Storage.get('payments', []);
-        AdminState.bannersType1 = Storage.get('bannersType1', []);
-        AdminState.bannersType2 = Storage.get('bannersType2', []);
-        AdminState.inputTables = Storage.get('inputTables', []);
-        AdminState.bannedUsers = Storage.get('bannedUsers', []);
-        AdminState.settings = Storage.get('settings', AdminState.settings);
+        // Load from localStorage using AdminStorage (with prefix)
+        AdminState.users = AdminStorage.get('users', []);
+        AdminState.orders = AdminStorage.get('orders', []);
+        AdminState.topupRequests = AdminStorage.get('topupRequests', []);
+        AdminState.categories = AdminStorage.get('categories', []);
+        AdminState.products = AdminStorage.get('products', []);
+        AdminState.payments = AdminStorage.get('payments', []);
+        AdminState.bannersType1 = AdminStorage.get('bannersType1', []);
+        AdminState.bannersType2 = AdminStorage.get('bannersType2', []);
+        AdminState.inputTables = AdminStorage.get('inputTables', []);
+        AdminState.bannedUsers = AdminStorage.get('bannedUsers', []);
+        AdminState.settings = AdminStorage.get('settings', AdminState.settings);
         
         // Calculate stats
         this.calculateStats();
@@ -479,12 +340,20 @@ class AdminPanel {
         
         // Modal close buttons
         document.querySelectorAll('.modal-close').forEach(btn => {
-            btn.addEventListener('click', () => Modal.closeAll());
+            btn.addEventListener('click', () => {
+                if (typeof Modal !== 'undefined') {
+                    Modal.closeAll();
+                }
+            });
         });
         
         // Modal overlays
         document.querySelectorAll('.modal-overlay').forEach(overlay => {
-            overlay.addEventListener('click', () => Modal.closeAll());
+            overlay.addEventListener('click', () => {
+                if (typeof Modal !== 'undefined') {
+                    Modal.closeAll();
+                }
+            });
         });
         
         // Setup all forms
@@ -565,7 +434,14 @@ class AdminPanel {
                 const file = e.target.files[0];
                 if (file) {
                     try {
-                        const base64 = await FileUpload.toBase64(file);
+                        // Use FileUpload from utils.js if available
+                        let base64;
+                        if (typeof FileUpload !== 'undefined' && FileUpload.toBase64) {
+                            base64 = await FileUpload.toBase64(file);
+                        } else {
+                            // Fallback
+                            base64 = await this.fileToBase64(file);
+                        }
                         if (imgEl) imgEl.src = base64;
                         previewEl?.classList.remove('hidden');
                         contentEl?.classList.add('hidden');
@@ -591,6 +467,16 @@ class AdminPanel {
                     content?.classList.remove('hidden');
                 }
             });
+        });
+    }
+
+    // Fallback file to base64 converter
+    fileToBase64(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
         });
     }
 
@@ -632,20 +518,26 @@ class AdminPanel {
     setupOrderActions() {
         document.getElementById('approve-order-btn')?.addEventListener('click', () => this.approveOrder());
         document.getElementById('reject-order-btn')?.addEventListener('click', () => this.rejectOrder());
-        document.getElementById('close-order-modal')?.addEventListener('click', () => Modal.close('order-details-modal'));
+        document.getElementById('close-order-modal')?.addEventListener('click', () => {
+            if (typeof Modal !== 'undefined') Modal.close('order-details-modal');
+        });
     }
 
     setupTopupActions() {
         document.getElementById('approve-topup-btn')?.addEventListener('click', () => this.approveTopup());
         document.getElementById('reject-topup-btn')?.addEventListener('click', () => this.rejectTopup());
-        document.getElementById('close-topup-request-modal')?.addEventListener('click', () => Modal.close('topup-request-modal'));
+        document.getElementById('close-topup-request-modal')?.addEventListener('click', () => {
+            if (typeof Modal !== 'undefined') Modal.close('topup-request-modal');
+        });
     }
 
     setupUserActions() {
         document.getElementById('add-balance-btn')?.addEventListener('click', () => this.adjustBalance('add'));
         document.getElementById('deduct-balance-btn')?.addEventListener('click', () => this.adjustBalance('deduct'));
         document.getElementById('ban-user-btn')?.addEventListener('click', () => this.banCurrentUser());
-        document.getElementById('close-user-modal')?.addEventListener('click', () => Modal.close('user-details-modal'));
+        document.getElementById('close-user-modal')?.addEventListener('click', () => {
+            if (typeof Modal !== 'undefined') Modal.close('user-details-modal');
+        });
     }
 
     // ============================================
@@ -712,6 +604,27 @@ class AdminPanel {
     }
 
     // ============================================
+    // Helper method to format currency
+    // Uses Format from utils.js if available
+    // ============================================
+    
+    formatCurrency(amount, currency = 'MMK') {
+        if (typeof Format !== 'undefined' && Format.currency) {
+            return Format.currency(amount, currency);
+        }
+        return `${Number(amount || 0).toLocaleString()} ${currency}`;
+    }
+
+    formatDate(dateStr, type = 'short') {
+        if (typeof Format !== 'undefined' && Format.date) {
+            return Format.date(dateStr, type);
+        }
+        if (!dateStr) return '-';
+        const d = new Date(dateStr);
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    // ============================================
     // Dashboard
     // ============================================
 
@@ -724,7 +637,7 @@ class AdminPanel {
         document.getElementById('approved-orders').textContent = AdminState.stats.approvedOrders;
         document.getElementById('pending-orders-count').textContent = AdminState.stats.pendingOrders;
         document.getElementById('rejected-orders').textContent = AdminState.stats.rejectedOrders;
-        document.getElementById('total-revenue').textContent = Format.currency(AdminState.stats.totalRevenue);
+        document.getElementById('total-revenue').textContent = this.formatCurrency(AdminState.stats.totalRevenue);
         
         // Recent orders
         const recentOrders = [...AdminState.orders]
@@ -738,7 +651,7 @@ class AdminPanel {
                     <div class="recent-item-icon"><i class="fas fa-shopping-cart"></i></div>
                     <div class="recent-item-info">
                         <span class="recent-item-title">${o.productName || 'Product'}</span>
-                        <span class="recent-item-subtitle">${o.userName || 'User'} • ${Format.date(o.createdAt, 'relative')}</span>
+                        <span class="recent-item-subtitle">${o.userName || 'User'} • ${this.formatDate(o.createdAt, 'relative')}</span>
                     </div>
                     <span class="recent-item-status ${o.status}">${o.status}</span>
                 </div>
@@ -756,8 +669,8 @@ class AdminPanel {
                 <div class="recent-item">
                     <div class="recent-item-icon"><i class="fas fa-money-bill-wave"></i></div>
                     <div class="recent-item-info">
-                        <span class="recent-item-title">${Format.currency(t.amount)}</span>
-                        <span class="recent-item-subtitle">${t.userName || 'User'} • ${Format.date(t.createdAt, 'relative')}</span>
+                        <span class="recent-item-title">${this.formatCurrency(t.amount)}</span>
+                        <span class="recent-item-subtitle">${t.userName || 'User'} • ${this.formatDate(t.createdAt, 'relative')}</span>
                     </div>
                     <span class="recent-item-status ${t.status}">${t.status}</span>
                 </div>
@@ -792,10 +705,10 @@ class AdminPanel {
                     </div>
                 </td>
                 <td>${user.id}</td>
-                <td>${Format.currency(user.balance || 0)}</td>
+                <td>${this.formatCurrency(user.balance || 0)}</td>
                 <td>${user.totalOrders || 0}</td>
                 <td><span class="status-badge ${user.isPremium ? 'premium' : 'regular'}">${user.isPremium ? '⭐ Premium' : 'Regular'}</span></td>
-                <td>${Format.date(user.joinedAt)}</td>
+                <td>${this.formatDate(user.joinedAt)}</td>
                 <td>
                     <div class="action-buttons">
                         <button class="btn-view" onclick="adminPanel.viewUser('${user.id}')"><i class="fas fa-eye"></i></button>
@@ -851,12 +764,12 @@ class AdminPanel {
         document.getElementById('modal-user-name').textContent = `${user.firstName || ''} ${user.lastName || ''}`;
         document.getElementById('modal-user-username').textContent = `@${user.username || 'N/A'}`;
         document.getElementById('modal-premium-badge').style.display = user.isPremium ? 'inline-flex' : 'none';
-        document.getElementById('modal-balance').textContent = Format.currency(user.balance || 0);
+        document.getElementById('modal-balance').textContent = this.formatCurrency(user.balance || 0);
         document.getElementById('modal-total-orders').textContent = orders.length;
         document.getElementById('modal-approved').textContent = orders.filter(o => o.status === 'approved').length;
         document.getElementById('modal-rejected').textContent = orders.filter(o => o.status === 'rejected').length;
-        document.getElementById('modal-total-topup').textContent = Format.currency(topups.filter(t => t.status === 'approved').reduce((s, t) => s + (t.amount || 0), 0));
-        document.getElementById('modal-joined').textContent = Format.date(user.joinedAt);
+        document.getElementById('modal-total-topup').textContent = this.formatCurrency(topups.filter(t => t.status === 'approved').reduce((s, t) => s + (t.amount || 0), 0));
+        document.getElementById('modal-joined').textContent = this.formatDate(user.joinedAt);
         
         // Orders list
         document.getElementById('user-orders-list').innerHTML = orders.length ? orders.slice(0, 10).map(o => `
@@ -869,12 +782,12 @@ class AdminPanel {
         // Topups list
         document.getElementById('user-topups-list').innerHTML = topups.length ? topups.slice(0, 10).map(t => `
             <div class="mini-table-item">
-                <span>${Format.currency(t.amount)}</span>
+                <span>${this.formatCurrency(t.amount)}</span>
                 <span class="status-badge ${t.status}">${t.status}</span>
             </div>
         `).join('') : '<p class="text-muted">No topups</p>';
         
-        Modal.open('user-details-modal');
+        if (typeof Modal !== 'undefined') Modal.open('user-details-modal');
     }
 
     adjustBalance(operation) {
@@ -884,7 +797,7 @@ class AdminPanel {
         const amount = parseFloat(amountInput?.value || 0);
         
         if (!amount || amount <= 0) {
-            Toast.warning('Invalid Amount', 'Please enter a valid amount');
+            if (typeof Toast !== 'undefined') Toast.warning('Invalid Amount', 'Please enter a valid amount');
             return;
         }
         
@@ -897,12 +810,12 @@ class AdminPanel {
             user.balance = Math.max(0, (user.balance || 0) - amount);
         }
         
-        Storage.set('users', AdminState.users);
+        AdminStorage.set('users', AdminState.users);
         
-        document.getElementById('modal-balance').textContent = Format.currency(user.balance);
+        document.getElementById('modal-balance').textContent = this.formatCurrency(user.balance);
         if (amountInput) amountInput.value = '';
         
-        Toast.success('Success', `Balance ${operation === 'add' ? 'added' : 'deducted'} successfully`);
+        if (typeof Toast !== 'undefined') Toast.success('Success', `Balance ${operation === 'add' ? 'added' : 'deducted'} successfully`);
     }
 
     banUser(userId) {
@@ -920,15 +833,15 @@ class AdminPanel {
             bannedAt: new Date().toISOString()
         });
         
-        Storage.set('bannedUsers', AdminState.bannedUsers);
-        Toast.success('User Banned', 'User has been banned successfully');
+        AdminStorage.set('bannedUsers', AdminState.bannedUsers);
+        if (typeof Toast !== 'undefined') Toast.success('User Banned', 'User has been banned successfully');
         this.loadUsers();
     }
 
     banCurrentUser() {
         if (AdminState.selectedUser) {
             this.banUser(AdminState.selectedUser.id);
-            Modal.close('user-details-modal');
+            if (typeof Modal !== 'undefined') Modal.close('user-details-modal');
         }
     }
 
@@ -964,7 +877,7 @@ class AdminPanel {
                     <div class="admin-order-product">
                         <div class="info">
                             <span class="name">${order.productName || 'Product'}</span>
-                            <span class="price">${Format.currency(order.price, order.currency)}</span>
+                            <span class="price">${this.formatCurrency(order.price, order.currency)}</span>
                         </div>
                     </div>
                 </div>
@@ -997,14 +910,14 @@ class AdminPanel {
         document.getElementById('order-id').textContent = order.id;
         document.getElementById('order-status').textContent = order.status;
         document.getElementById('order-status').className = `value status ${order.status}`;
-        document.getElementById('order-date').textContent = Format.date(order.createdAt, 'datetime');
+        document.getElementById('order-date').textContent = this.formatDate(order.createdAt, 'datetime');
         document.getElementById('order-user-avatar').src = `https://ui-avatars.com/api/?name=${encodeURIComponent(order.userName || 'U')}&background=8B5CF6&color=fff`;
         document.getElementById('order-user-name').textContent = order.userName || 'User';
         document.getElementById('order-user-id').textContent = `ID: ${order.userId}`;
         document.getElementById('order-product-icon').src = order.productIcon || 'https://ui-avatars.com/api/?name=P&background=6366F1&color=fff';
         document.getElementById('order-product-name').textContent = order.productName || 'Product';
         document.getElementById('order-product-amount').textContent = order.amount || '';
-        document.getElementById('order-product-price').textContent = Format.currency(order.price, order.currency);
+        document.getElementById('order-product-price').textContent = this.formatCurrency(order.price, order.currency);
         
         // Input values
         const inputInfo = document.getElementById('order-input-info');
@@ -1023,7 +936,7 @@ class AdminPanel {
         // Show/hide actions based on status
         document.getElementById('order-actions').style.display = order.status === 'pending' ? 'flex' : 'none';
         
-        Modal.open('order-details-modal');
+        if (typeof Modal !== 'undefined') Modal.open('order-details-modal');
     }
 
     async approveOrder() {
@@ -1039,14 +952,14 @@ class AdminPanel {
         const user = AdminState.users.find(u => String(u.id) === String(order.userId));
         if (user) {
             user.completedOrders = (user.completedOrders || 0) + 1;
-            Storage.set('users', AdminState.users);
+            AdminStorage.set('users', AdminState.users);
         }
         
-        Storage.set('orders', AdminState.orders);
+        AdminStorage.set('orders', AdminState.orders);
         this.calculateStats();
         
-        Modal.close('order-details-modal');
-        Toast.success('Order Approved', 'Order has been approved successfully');
+        if (typeof Modal !== 'undefined') Modal.close('order-details-modal');
+        if (typeof Toast !== 'undefined') Toast.success('Order Approved', 'Order has been approved successfully');
         this.loadOrders();
     }
 
@@ -1065,14 +978,14 @@ class AdminPanel {
         if (user) {
             user.balance = (user.balance || 0) + (order.price || 0);
             user.rejectedOrders = (user.rejectedOrders || 0) + 1;
-            Storage.set('users', AdminState.users);
+            AdminStorage.set('users', AdminState.users);
         }
         
-        Storage.set('orders', AdminState.orders);
+        AdminStorage.set('orders', AdminState.orders);
         this.calculateStats();
         
-        Modal.close('order-details-modal');
-        Toast.success('Order Rejected', 'Order rejected and amount refunded');
+        if (typeof Modal !== 'undefined') Modal.close('order-details-modal');
+        if (typeof Toast !== 'undefined') Toast.success('Order Rejected', 'Order rejected and amount refunded');
         this.loadOrders();
     }
 
@@ -1106,8 +1019,8 @@ class AdminPanel {
                         </div>
                     </div>
                     <div style="text-align:right;">
-                        <div style="font-size:18px;font-weight:700;color:var(--success);">${Format.currency(topup.amount)}</div>
-                        <div style="font-size:12px;color:var(--text-tertiary);">${Format.date(topup.createdAt, 'relative')}</div>
+                        <div style="font-size:18px;font-weight:700;color:var(--success);">${this.formatCurrency(topup.amount)}</div>
+                        <div style="font-size:12px;color:var(--text-tertiary);">${this.formatDate(topup.createdAt, 'relative')}</div>
                     </div>
                 </div>
             </div>
@@ -1140,16 +1053,16 @@ class AdminPanel {
         document.getElementById('topup-user-avatar').src = `https://ui-avatars.com/api/?name=${encodeURIComponent(topup.userName || 'U')}&background=8B5CF6&color=fff`;
         document.getElementById('topup-user-name').textContent = topup.userName || 'User';
         document.getElementById('topup-user-id').textContent = `ID: ${topup.userId}`;
-        document.getElementById('topup-amount-value').textContent = Format.currency(topup.amount);
+        document.getElementById('topup-amount-value').textContent = this.formatCurrency(topup.amount);
         document.getElementById('topup-payment-method').textContent = topup.paymentMethod || '-';
-        document.getElementById('topup-date').textContent = Format.date(topup.createdAt, 'datetime');
+        document.getElementById('topup-date').textContent = this.formatDate(topup.createdAt, 'datetime');
         document.getElementById('topup-status').textContent = topup.status;
         document.getElementById('topup-status').className = `value status ${topup.status}`;
         document.getElementById('topup-screenshot').src = topup.screenshot || '';
         
         document.getElementById('topup-actions').style.display = topup.status === 'pending' ? 'flex' : 'none';
         
-        Modal.open('topup-request-modal');
+        if (typeof Modal !== 'undefined') Modal.open('topup-request-modal');
     }
 
     async approveTopup() {
@@ -1166,14 +1079,14 @@ class AdminPanel {
         if (user) {
             user.balance = (user.balance || 0) + (topup.amount || 0);
             user.totalTopup = (user.totalTopup || 0) + (topup.amount || 0);
-            Storage.set('users', AdminState.users);
+            AdminStorage.set('users', AdminState.users);
         }
         
-        Storage.set('topupRequests', AdminState.topupRequests);
+        AdminStorage.set('topupRequests', AdminState.topupRequests);
         this.calculateStats();
         
-        Modal.close('topup-request-modal');
-        Toast.success('Topup Approved', 'Balance added to user');
+        if (typeof Modal !== 'undefined') Modal.close('topup-request-modal');
+        if (typeof Toast !== 'undefined') Toast.success('Topup Approved', 'Balance added to user');
         this.loadTopupRequests();
     }
 
@@ -1187,11 +1100,11 @@ class AdminPanel {
         topup.status = 'rejected';
         topup.updatedAt = new Date().toISOString();
         
-        Storage.set('topupRequests', AdminState.topupRequests);
+        AdminStorage.set('topupRequests', AdminState.topupRequests);
         this.calculateStats();
         
-        Modal.close('topup-request-modal');
-        Toast.success('Topup Rejected', 'Request has been rejected');
+        if (typeof Modal !== 'undefined') Modal.close('topup-request-modal');
+        if (typeof Toast !== 'undefined') Toast.success('Topup Rejected', 'Request has been rejected');
         this.loadTopupRequests();
     }
 
@@ -1257,7 +1170,7 @@ class AdminPanel {
             }
         }
         
-        Modal.open('category-modal');
+        if (typeof Modal !== 'undefined') Modal.open('category-modal');
     }
 
     editCategory(categoryId) {
@@ -1275,13 +1188,17 @@ class AdminPanel {
         const previewImg = document.getElementById('category-icon-img');
         
         if (!name) {
-            Toast.warning('Required', 'Please enter category name');
+            if (typeof Toast !== 'undefined') Toast.warning('Required', 'Please enter category name');
             return;
         }
         
         let icon = previewImg?.src || '';
         if (iconInput?.files[0]) {
-            icon = await FileUpload.toBase64(iconInput.files[0]);
+            if (typeof FileUpload !== 'undefined' && FileUpload.toBase64) {
+                icon = await FileUpload.toBase64(iconInput.files[0]);
+            } else {
+                icon = await this.fileToBase64(iconInput.files[0]);
+            }
         }
         
         const categoryData = {
@@ -1303,24 +1220,24 @@ class AdminPanel {
             AdminState.categories.push(categoryData);
         }
         
-        Storage.set('categories', AdminState.categories);
-        Modal.close('category-modal');
-        Toast.success('Success', 'Category saved successfully');
+        AdminStorage.set('categories', AdminState.categories);
+        if (typeof Modal !== 'undefined') Modal.close('category-modal');
+        if (typeof Toast !== 'undefined') Toast.success('Success', 'Category saved successfully');
         this.loadCategories();
     }
 
     deleteCategory(categoryId) {
         const products = AdminState.products.filter(p => p.categoryId === categoryId);
         if (products.length > 0) {
-            Toast.warning('Cannot Delete', `This category has ${products.length} products. Delete products first.`);
+            if (typeof Toast !== 'undefined') Toast.warning('Cannot Delete', `This category has ${products.length} products. Delete products first.`);
             return;
         }
         
         if (!confirm('Delete this category?')) return;
         
         AdminState.categories = AdminState.categories.filter(c => c.id !== categoryId);
-        Storage.set('categories', AdminState.categories);
-        Toast.success('Deleted', 'Category deleted successfully');
+        AdminStorage.set('categories', AdminState.categories);
+        if (typeof Toast !== 'undefined') Toast.success('Deleted', 'Category deleted successfully');
         this.loadCategories();
     }
 
@@ -1369,8 +1286,8 @@ class AdminPanel {
                         <div class="category-tag">${category?.name || 'Unknown'}</div>
                         <h4>${product.name}</h4>
                         <div class="price-row">
-                            <span class="price-current">${Format.currency(discountedPrice, product.currency)}</span>
-                            ${product.hasDiscount ? `<span class="price-original">${Format.currency(product.price, product.currency)}</span>` : ''}
+                            <span class="price-current">${this.formatCurrency(discountedPrice, product.currency)}</span>
+                            ${product.hasDiscount ? `<span class="price-original">${this.formatCurrency(product.price, product.currency)}</span>` : ''}
                         </div>
                         <div class="admin-product-actions">
                             <button class="btn-view" onclick="adminPanel.editProduct('${product.id}')"><i class="fas fa-edit"></i></button>
@@ -1425,7 +1342,7 @@ class AdminPanel {
             }
         }
         
-        Modal.open('product-modal');
+        if (typeof Modal !== 'undefined') Modal.open('product-modal');
     }
 
     editProduct(productId) {
@@ -1457,13 +1374,17 @@ class AdminPanel {
         const previewImg = document.getElementById('product-icon-img');
         
         if (!categoryId || !name || !price) {
-            Toast.warning('Required', 'Please fill all required fields');
+            if (typeof Toast !== 'undefined') Toast.warning('Required', 'Please fill all required fields');
             return;
         }
         
         let icon = previewImg?.src || '';
         if (iconInput?.files[0]) {
-            icon = await FileUpload.toBase64(iconInput.files[0]);
+            if (typeof FileUpload !== 'undefined' && FileUpload.toBase64) {
+                icon = await FileUpload.toBase64(iconInput.files[0]);
+            } else {
+                icon = await this.fileToBase64(iconInput.files[0]);
+            }
         }
         
         const productData = {
@@ -1490,9 +1411,9 @@ class AdminPanel {
             AdminState.products.push(productData);
         }
         
-        Storage.set('products', AdminState.products);
-        Modal.close('product-modal');
-        Toast.success('Success', 'Product saved successfully');
+        AdminStorage.set('products', AdminState.products);
+        if (typeof Modal !== 'undefined') Modal.close('product-modal');
+        if (typeof Toast !== 'undefined') Toast.success('Success', 'Product saved successfully');
         this.loadProducts();
     }
 
@@ -1500,8 +1421,8 @@ class AdminPanel {
         if (!confirm('Delete this product?')) return;
         
         AdminState.products = AdminState.products.filter(p => p.id !== productId);
-        Storage.set('products', AdminState.products);
-        Toast.success('Deleted', 'Product deleted successfully');
+        AdminStorage.set('products', AdminState.products);
+        if (typeof Toast !== 'undefined') Toast.success('Deleted', 'Product deleted successfully');
         this.loadProducts();
     }
 
@@ -1564,7 +1485,7 @@ class AdminPanel {
             }
         }
         
-        Modal.open('payment-modal');
+        if (typeof Modal !== 'undefined') Modal.open('payment-modal');
     }
 
     editPayment(paymentId) {
@@ -1584,13 +1505,17 @@ class AdminPanel {
         const previewImg = document.getElementById('payment-icon-img');
         
         if (!name || !address || !holder) {
-            Toast.warning('Required', 'Please fill all required fields');
+            if (typeof Toast !== 'undefined') Toast.warning('Required', 'Please fill all required fields');
             return;
         }
         
         let icon = previewImg?.src || '';
         if (iconInput?.files[0]) {
-            icon = await FileUpload.toBase64(iconInput.files[0]);
+            if (typeof FileUpload !== 'undefined' && FileUpload.toBase64) {
+                icon = await FileUpload.toBase64(iconInput.files[0]);
+            } else {
+                icon = await this.fileToBase64(iconInput.files[0]);
+            }
         }
         
         const paymentData = {
@@ -1614,9 +1539,9 @@ class AdminPanel {
             AdminState.payments.push(paymentData);
         }
         
-        Storage.set('payments', AdminState.payments);
-        Modal.close('payment-modal');
-        Toast.success('Success', 'Payment method saved successfully');
+        AdminStorage.set('payments', AdminState.payments);
+        if (typeof Modal !== 'undefined') Modal.close('payment-modal');
+        if (typeof Toast !== 'undefined') Toast.success('Success', 'Payment method saved successfully');
         this.loadPayments();
     }
 
@@ -1624,8 +1549,8 @@ class AdminPanel {
         if (!confirm('Delete this payment method?')) return;
         
         AdminState.payments = AdminState.payments.filter(p => p.id !== paymentId);
-        Storage.set('payments', AdminState.payments);
-        Toast.success('Deleted', 'Payment method deleted successfully');
+        AdminStorage.set('payments', AdminState.payments);
+        if (typeof Toast !== 'undefined') Toast.success('Deleted', 'Payment method deleted successfully');
         this.loadPayments();
     }
 
@@ -1665,7 +1590,7 @@ class AdminPanel {
                             <img src="${b.image}" alt="Banner" class="banner-list-item-image">
                             <div class="banner-list-item-content">
                                 <span class="category-tag">${cat?.name || 'Unknown'}</span>
-                                <p>${Format.truncate(b.instructions || '', 100)}</p>
+                                <p>${(b.instructions || '').substring(0, 100)}${(b.instructions || '').length > 100 ? '...' : ''}</p>
                             </div>
                             <div class="banner-list-item-actions">
                                 <button class="btn-view" onclick="adminPanel.editBanner('${b.id}', 'type2')"><i class="fas fa-edit"></i></button>
@@ -1717,7 +1642,7 @@ class AdminPanel {
             }
         }
         
-        Modal.open('add-banner-modal');
+        if (typeof Modal !== 'undefined') Modal.open('add-banner-modal');
     }
 
     editBanner(bannerId, type) {
@@ -1734,11 +1659,15 @@ class AdminPanel {
         
         let image = previewImg?.src || '';
         if (imageInput?.files[0]) {
-            image = await FileUpload.toBase64(imageInput.files[0]);
+            if (typeof FileUpload !== 'undefined' && FileUpload.toBase64) {
+                image = await FileUpload.toBase64(imageInput.files[0]);
+            } else {
+                image = await this.fileToBase64(imageInput.files[0]);
+            }
         }
         
         if (!image) {
-            Toast.warning('Required', 'Please upload a banner image');
+            if (typeof Toast !== 'undefined') Toast.warning('Required', 'Please upload a banner image');
             return;
         }
         
@@ -1753,7 +1682,7 @@ class AdminPanel {
             bannerData.instructions = document.getElementById('banner-instructions').value;
             
             if (!bannerData.categoryId) {
-                Toast.warning('Required', 'Please select a category');
+                if (typeof Toast !== 'undefined') Toast.warning('Required', 'Please select a category');
                 return;
             }
         }
@@ -1771,9 +1700,9 @@ class AdminPanel {
             banners.push(bannerData);
         }
         
-        Storage.set(storageKey, banners);
-        Modal.close('add-banner-modal');
-        Toast.success('Success', 'Banner saved successfully');
+        AdminStorage.set(storageKey, banners);
+        if (typeof Modal !== 'undefined') Modal.close('add-banner-modal');
+        if (typeof Toast !== 'undefined') Toast.success('Success', 'Banner saved successfully');
         this.loadBanners();
     }
 
@@ -1782,13 +1711,13 @@ class AdminPanel {
         
         if (type === 'type1') {
             AdminState.bannersType1 = AdminState.bannersType1.filter(b => b.id !== bannerId);
-            Storage.set('bannersType1', AdminState.bannersType1);
+            AdminStorage.set('bannersType1', AdminState.bannersType1);
         } else {
             AdminState.bannersType2 = AdminState.bannersType2.filter(b => b.id !== bannerId);
-            Storage.set('bannersType2', AdminState.bannersType2);
+            AdminStorage.set('bannersType2', AdminState.bannersType2);
         }
         
-        Toast.success('Deleted', 'Banner deleted successfully');
+        if (typeof Toast !== 'undefined') Toast.success('Deleted', 'Banner deleted successfully');
         this.loadBanners();
     }
 
@@ -1851,7 +1780,7 @@ class AdminPanel {
             }
         }
         
-        Modal.open('input-table-modal');
+        if (typeof Modal !== 'undefined') Modal.open('input-table-modal');
     }
 
     editInputTable(tableId) {
@@ -1868,7 +1797,7 @@ class AdminPanel {
         const required = document.getElementById('input-table-required').checked;
         
         if (!categoryId || !name) {
-            Toast.warning('Required', 'Please fill all required fields');
+            if (typeof Toast !== 'undefined') Toast.warning('Required', 'Please fill all required fields');
             return;
         }
         
@@ -1891,9 +1820,9 @@ class AdminPanel {
             AdminState.inputTables.push(tableData);
         }
         
-        Storage.set('inputTables', AdminState.inputTables);
-        Modal.close('input-table-modal');
-        Toast.success('Success', 'Input table saved successfully');
+        AdminStorage.set('inputTables', AdminState.inputTables);
+        if (typeof Modal !== 'undefined') Modal.close('input-table-modal');
+        if (typeof Toast !== 'undefined') Toast.success('Success', 'Input table saved successfully');
         this.loadInputTables();
     }
 
@@ -1901,8 +1830,8 @@ class AdminPanel {
         if (!confirm('Delete this input table?')) return;
         
         AdminState.inputTables = AdminState.inputTables.filter(t => t.id !== tableId);
-        Storage.set('inputTables', AdminState.inputTables);
-        Toast.success('Deleted', 'Input table deleted successfully');
+        AdminStorage.set('inputTables', AdminState.inputTables);
+        if (typeof Toast !== 'undefined') Toast.success('Deleted', 'Input table deleted successfully');
         this.loadInputTables();
     }
 
@@ -1920,10 +1849,10 @@ class AdminPanel {
         const text = document.getElementById('announcement-text').value.trim();
         
         AdminState.settings.announcement = text;
-        Storage.set('settings', AdminState.settings);
+        AdminStorage.set('settings', AdminState.settings);
         
         document.getElementById('announcement-preview').innerHTML = `<p>${text || 'No announcement set'}</p>`;
-        Toast.success('Saved', 'Announcement updated successfully');
+        if (typeof Toast !== 'undefined') Toast.success('Saved', 'Announcement updated successfully');
     }
 
     loadBroadcast() {
@@ -1935,18 +1864,18 @@ class AdminPanel {
         const message = document.getElementById('broadcast-message').value.trim();
         
         if (!message) {
-            Toast.warning('Required', 'Please enter a message');
+            if (typeof Toast !== 'undefined') Toast.warning('Required', 'Please enter a message');
             return;
         }
         
         if (!confirm(`Send this message to ${AdminState.users.length} users?`)) return;
         
         // In production, this would call the Telegram API
-        Loading.show('Sending broadcast...');
+        if (typeof Loading !== 'undefined') Loading.show('Sending broadcast...');
         
         setTimeout(() => {
-            Loading.hide();
-            Toast.success('Sent', `Broadcast sent to ${AdminState.users.length} users`);
+            if (typeof Loading !== 'undefined') Loading.hide();
+            if (typeof Toast !== 'undefined') Toast.success('Sent', `Broadcast sent to ${AdminState.users.length} users`);
             document.getElementById('broadcast-form').reset();
         }, 2000);
     }
@@ -1966,7 +1895,7 @@ class AdminPanel {
                 <div class="banned-user-info">
                     <h4>${user.firstName || ''} ${user.lastName || ''} (@${user.username || 'N/A'})</h4>
                     <div class="reason">Reason: ${user.reason || 'No reason specified'}</div>
-                    <div class="date">Banned: ${Format.date(user.bannedAt, 'datetime')}</div>
+                    <div class="date">Banned: ${this.formatDate(user.bannedAt, 'datetime')}</div>
                 </div>
                 <button class="unban-btn" onclick="adminPanel.unbanUser('${user.id}')"><i class="fas fa-user-check"></i> Unban</button>
             </div>
@@ -1977,8 +1906,8 @@ class AdminPanel {
         if (!confirm('Unban this user?')) return;
         
         AdminState.bannedUsers = AdminState.bannedUsers.filter(u => String(u.id) !== String(userId));
-        Storage.set('bannedUsers', AdminState.bannedUsers);
-        Toast.success('Unbanned', 'User has been unbanned');
+        AdminStorage.set('bannedUsers', AdminState.bannedUsers);
+        if (typeof Toast !== 'undefined') Toast.success('Unbanned', 'User has been unbanned');
         this.loadBannedUsers();
     }
 
@@ -2004,16 +1933,20 @@ class AdminPanel {
         
         let logo = AdminState.settings.logo || '';
         if (logoInput?.files[0]) {
-            logo = await FileUpload.toBase64(logoInput.files[0]);
+            if (typeof FileUpload !== 'undefined' && FileUpload.toBase64) {
+                logo = await FileUpload.toBase64(logoInput.files[0]);
+            } else {
+                logo = await this.fileToBase64(logoInput.files[0]);
+            }
         } else if (previewImg?.src && previewImg.src !== window.location.href) {
             logo = previewImg.src;
         }
         
         AdminState.settings = { ...AdminState.settings, siteName, theme, logo };
-        Storage.set('settings', AdminState.settings);
+        AdminStorage.set('settings', AdminState.settings);
         
         this.updateAdminInfo();
-        Toast.success('Saved', 'Settings saved successfully');
+        if (typeof Toast !== 'undefined') Toast.success('Saved', 'Settings saved successfully');
     }
 }
 
@@ -2030,4 +1963,4 @@ document.addEventListener('DOMContentLoaded', () => {
     window.adminPanel = adminPanel;
 });
 
-console.log('✅ Admin.js loaded');
+console.log('✅ Admin.js loaded (Fixed - No duplicate declarations)');
