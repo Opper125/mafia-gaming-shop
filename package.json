@@ -1,0 +1,16 @@
+{
+  "name": "mafia-gaming-shop",
+  "version": "1.0.0",
+  "description": "Gaming UC & Diamond Topup Shop with Telegram Integration",
+  "scripts": {
+    "start": "node api/telegram.js"
+  },
+  "dependencies": {
+    "node-fetch": "^2.7.0"
+  },
+  "engines": {
+    "node": "20.x"
+  },
+  "author": "Mafia Gaming Shop",
+  "license": "MIT"
+}
