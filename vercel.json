@@ -1,40 +1,32 @@
 {
   "version": 2,
-  "buildCommand": null,
-  "installCommand": null,
-  "outputDirectory": ".",
-  "framework": null,
-  "rewrites": [
+  "builds": [
     {
-      "source": "/((?!css|js|assets).*)",
-      "destination": "/index.html"
+      "src": "api/**/*.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "public/**",
+      "use": "@vercel/static"
     }
   ],
-  "headers": [
+  "routes": [
     {
-      "source": "/(.*)",
-      "headers": [
-        {
-          "key": "X-Frame-Options",
-          "value": "SAMEORIGIN"
-        },
-        {
-          "key": "Content-Security-Policy",
-          "value": "frame-ancestors 'self' https://web.telegram.org https://*.telegram.org https://telegram.org"
-        },
-        {
-          "key": "Access-Control-Allow-Origin",
-          "value": "*"
-        },
-        {
-          "key": "Access-Control-Allow-Methods",
-          "value": "GET, POST, PUT, DELETE, OPTIONS"
-        },
-        {
-          "key": "Access-Control-Allow-Headers",
-          "value": "Content-Type, Authorization, X-Master-Key, X-Access-Key"
-        }
-      ]
+      "src": "/api/(.*)",
+      "dest": "/api/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/public/$1"
     }
-  ]
+  ],
+  "env": {
+    "BOT_TOKEN": "8506121473:AAE6LXKDj6J8GR9HKYNzkq47EVa7tV8BBUM",
+    "BOT_USERNAME": "mafia_gamingshopbot",
+    "ADMIN_TELEGRAM_ID": "1538232799",
+    "ADMIN_USERNAME": "OPPER101",
+    "JSONBIN_MASTER_KEY": "$2a$10$nweVi.eOGDsyC7uEsN/OxeLcIr8uhyN8x86AiIo8koJ.B7MX1I5Bu",
+    "JSONBIN_ACCESS_KEY": "$2a$10$tNEyDbr/ez8kUETcZBK.6OwFCcaAE4bjDV8EHQtjz3jbgjs8jqbrS",
+    "WEBAPP_URL": "https://mafia-gamin-shop.vercel.app"
+  }
 }
