@@ -1,476 +1,510 @@
 /* ============================================
-   MAFIA GAMING SHOP - MAIN APPLICATION
-   Version: 3.0.0 (JSONBin Integration)
+   MAFIA GAMING SHOP - ADMIN PANEL
+   Version: 3.1.0 (Fixed - Auto Create Bins)
    ============================================ */
 
 // ============================================
-// Configuration - Same as Admin Panel
+// Configuration
 // ============================================
 
-const CONFIG = {
+const ADMIN_CONFIG = {
     ADMIN_ID: 1538232799,
     ADMIN_ID_STR: '1538232799',
     BOT_TOKEN: '8506121473:AAE6LXKDj6J8GR9HKYNzkq47EVa7tV8BBUM',
     BOT_USERNAME: 'mafia_gamingshopbot',
     
-    // JSONBin.io Configuration - SAME AS ADMIN
     JSONBIN: {
         BASE_URL: 'https://api.jsonbin.io/v3',
         MASTER_KEY: '$2a$10$nweVi.eOGDsyC7uEsN/OxeLcIr8uhyN8x86AiIo8koJ.B7MX1I5Bu',
-        ACCESS_KEY: '$2a$10$tNEyDbr/ez8kUETcZBK.6OwFCcaAE4bjDV8EHQtjz3jbgjs8jqbrS'
+        ACCESS_KEY: '$2a$10$tNEyDbr/ez8kUETcZBK.6OwFCcaAE4bjDV8EHQtjz3jbgjs8jqbrS',
+        
+        // ⚠️ Admin Panel ဖွင့်ပြီး bins create လုပ်ပြီးရင်
+        // Console မှာပြတဲ့ IDs တွေကို ဒီမှာ ထည့်ပါ
+        // ထည့်ပြီးရင် app.js မှာလည်း တူတူထည့်ပါ
+        BIN_IDS: {
+            master: '',
+            users: '',
+            categories: '',
+            products: '',
+            orders: '',
+            topupRequests: '',
+            payments: '',
+            bannersType1: '',
+            bannersType2: '',
+            inputTables: '',
+            bannedUsers: '',
+            broadcasts: '',
+            settings: ''
+        }
     }
 };
 
 // ============================================
-// JSONBin Database Service - User Version
+// Database Service with Auto-Create
 // ============================================
 
-const JSONBinDB = {
+const AdminDB = {
     binIds: {},
     initialized: false,
     
-    // Initialize - Load bin IDs from localStorage (created by admin)
+    defaultData: {
+        users: [],
+        categories: [],
+        products: [],
+        orders: [],
+        topupRequests: [],
+        payments: [],
+        bannersType1: [],
+        bannersType2: [],
+        inputTables: [],
+        bannedUsers: [],
+        broadcasts: [],
+        settings: {
+            siteName: 'Mafia Gaming Shop',
+            logo: '',
+            theme: 'dark',
+            announcement: 'Welcome to Mafia Gaming Shop! 🎮',
+            minTopup: 1000,
+            maxTopup: 1000000
+        }
+    },
+    
     async init() {
-        console.log('🗄️ Connecting to database...');
+        console.log('🗄️ Initializing Admin Database...');
+        
+        // Check hardcoded BIN_IDS first
+        if (ADMIN_CONFIG.JSONBIN.BIN_IDS.master) {
+            this.binIds = { ...ADMIN_CONFIG.JSONBIN.BIN_IDS };
+            console.log('✅ Using hardcoded BIN IDs');
+            this.initialized = true;
+            this.printBinIds();
+            return true;
+        }
+        
+        // Check localStorage
+        const saved = localStorage.getItem('mafia_jsonbin_ids');
+        if (saved) {
+            try {
+                this.binIds = JSON.parse(saved);
+                
+                // Verify bins still exist
+                const verified = await this.verifyBins();
+                if (verified) {
+                    console.log('✅ Loaded existing BIN IDs from localStorage');
+                    this.initialized = true;
+                    this.printBinIds();
+                    return true;
+                }
+            } catch (e) {
+                console.error('Parse error:', e);
+            }
+        }
+        
+        // Create new bins
+        console.log('📦 Creating new database bins...');
+        const created = await this.createAllBins();
+        
+        if (created) {
+            this.initialized = true;
+            this.printBinIds();
+            return true;
+        }
+        
+        return false;
+    },
+    
+    async verifyBins() {
+        if (!this.binIds.master) return false;
         
         try {
-            // Try to load bin IDs from localStorage (shared with admin)
-            const savedBinIds = localStorage.getItem('mafia_jsonbin_ids');
-            
-            if (savedBinIds) {
-                this.binIds = JSON.parse(savedBinIds);
-                console.log('✅ Database connected with existing bins:', Object.keys(this.binIds));
-                this.initialized = true;
-                return true;
-            }
-            
-            // If no local bins, try to find master bin from Telegram CloudStorage
-            console.log('⚠️ No local bins found. Waiting for admin setup...');
-            
-            // Return false - admin needs to set up first
-            this.initialized = false;
-            return false;
-            
-        } catch (error) {
-            console.error('❌ Database init error:', error);
+            const response = await fetch(`${ADMIN_CONFIG.JSONBIN.BASE_URL}/b/${this.binIds.master}/latest`, {
+                headers: { 'X-Master-Key': ADMIN_CONFIG.JSONBIN.MASTER_KEY }
+            });
+            return response.ok;
+        } catch (e) {
             return false;
         }
     },
     
-    // Read data from bin
+    async createAllBins() {
+        const binTypes = [
+            'users', 'categories', 'products', 'orders', 
+            'topupRequests', 'payments', 'bannersType1', 
+            'bannersType2', 'inputTables', 'bannedUsers', 
+            'broadcasts', 'settings'
+        ];
+        
+        const createdBins = {};
+        
+        for (let i = 0; i < binTypes.length; i++) {
+            const type = binTypes[i];
+            const progress = Math.round(((i + 1) / binTypes.length) * 100);
+            
+            showAdminLoading(`Creating ${type}... ${progress}%`);
+            
+            try {
+                const binId = await this.createBin(type, this.defaultData[type]);
+                createdBins[type] = binId;
+                console.log(`✅ Created: ${type} = ${binId}`);
+            } catch (error) {
+                console.error(`❌ Failed: ${type}`, error);
+                showAdminToast('error', 'Error', `Failed to create ${type}`);
+                return false;
+            }
+            
+            // Delay to avoid rate limiting
+            await this.delay(500);
+        }
+        
+        // Create master bin
+        showAdminLoading('Finalizing database...');
+        
+        try {
+            const masterBinId = await this.createBin('master', {
+                binIds: createdBins,
+                createdAt: new Date().toISOString(),
+                version: '3.1.0'
+            });
+            
+            this.binIds = { master: masterBinId, ...createdBins };
+            this.saveBinIds();
+            
+            showAdminToast('success', 'Database Created!', 'All bins created successfully');
+            return true;
+            
+        } catch (error) {
+            console.error('Failed to create master bin:', error);
+            return false;
+        }
+    },
+    
+    async createBin(name, data) {
+        const response = await fetch(`${ADMIN_CONFIG.JSONBIN.BASE_URL}/b`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Master-Key': ADMIN_CONFIG.JSONBIN.MASTER_KEY,
+                'X-Bin-Name': `mafia-shop-${name}`,
+                'X-Bin-Private': 'false'
+            },
+            body: JSON.stringify(data)
+        });
+        
+        if (!response.ok) {
+            const error = await response.text();
+            throw new Error(error);
+        }
+        
+        const result = await response.json();
+        return result.metadata.id;
+    },
+    
     async read(binType) {
         const binId = this.binIds[binType];
         
         if (!binId) {
-            console.warn(`⚠️ Bin not found: ${binType}`);
-            return this.getDefaultData(binType);
+            console.warn(`Bin not found: ${binType}`);
+            return this.defaultData[binType] || null;
         }
         
         try {
-            const response = await fetch(`${CONFIG.JSONBIN.BASE_URL}/b/${binId}/latest`, {
-                headers: {
-                    'X-Master-Key': CONFIG.JSONBIN.MASTER_KEY
-                }
+            const response = await fetch(`${ADMIN_CONFIG.JSONBIN.BASE_URL}/b/${binId}/latest`, {
+                headers: { 'X-Master-Key': ADMIN_CONFIG.JSONBIN.MASTER_KEY }
             });
             
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
-            }
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
             
             const data = await response.json();
-            
-            // Also cache in localStorage for faster access
-            localStorage.setItem(`mafia_${binType}`, JSON.stringify(data.record));
-            
             return data.record;
             
         } catch (error) {
-            console.error(`❌ Read error for ${binType}:`, error);
-            
-            // Try localStorage fallback
-            const cached = localStorage.getItem(`mafia_${binType}`);
-            if (cached) {
-                console.log(`📦 Using cached data for ${binType}`);
-                return JSON.parse(cached);
-            }
-            
-            return this.getDefaultData(binType);
+            console.error(`Read error (${binType}):`, error);
+            return this.defaultData[binType] || null;
         }
     },
     
-    // Write data to bin
     async write(binType, data) {
         const binId = this.binIds[binType];
         
         if (!binId) {
-            console.error(`❌ Bin not found: ${binType}`);
-            localStorage.setItem(`mafia_${binType}`, JSON.stringify(data));
+            console.error(`Bin not found: ${binType}`);
             return false;
         }
         
         try {
-            const response = await fetch(`${CONFIG.JSONBIN.BASE_URL}/b/${binId}`, {
+            const response = await fetch(`${ADMIN_CONFIG.JSONBIN.BASE_URL}/b/${binId}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-Master-Key': CONFIG.JSONBIN.MASTER_KEY
+                    'X-Master-Key': ADMIN_CONFIG.JSONBIN.MASTER_KEY
                 },
                 body: JSON.stringify(data)
             });
             
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
-            }
-            
-            // Also update localStorage cache
-            localStorage.setItem(`mafia_${binType}`, JSON.stringify(data));
-            
-            return true;
+            return response.ok;
             
         } catch (error) {
-            console.error(`❌ Write error for ${binType}:`, error);
-            localStorage.setItem(`mafia_${binType}`, JSON.stringify(data));
+            console.error(`Write error (${binType}):`, error);
             return false;
         }
     },
     
-    // Get default data for each type
-    getDefaultData(binType) {
-        const defaults = {
-            users: [],
-            categories: [],
-            products: [],
-            orders: [],
-            topupRequests: [],
-            payments: [],
-            bannersType1: [],
-            bannersType2: [],
-            inputTables: [],
-            bannedUsers: [],
-            broadcasts: [],
-            settings: {
-                siteName: 'Mafia Gaming Shop',
-                logo: '',
-                theme: 'dark',
-                announcement: 'Welcome to Mafia Gaming Shop! 🎮',
-                minTopup: 1000,
-                maxTopup: 1000000
-            }
-        };
-        return defaults[binType] || null;
+    saveBinIds() {
+        localStorage.setItem('mafia_jsonbin_ids', JSON.stringify(this.binIds));
     },
     
-    // Check if database is ready
-    isReady() {
-        return this.initialized && Object.keys(this.binIds).length > 0;
+    printBinIds() {
+        console.log('\n========================================');
+        console.log('📋 JSONBIN IDs - COPY THESE TO YOUR CODE');
+        console.log('========================================');
+        console.log('Paste these into admin.js AND app.js:');
+        console.log('----------------------------------------');
+        console.log('BIN_IDS: {');
+        Object.entries(this.binIds).forEach(([key, value]) => {
+            console.log(`    ${key}: '${value}',`);
+        });
+        console.log('}');
+        console.log('========================================\n');
+        
+        // Also show in alert for easy copying
+        const idsText = Object.entries(this.binIds)
+            .map(([key, value]) => `${key}: '${value}'`)
+            .join(',\n    ');
+        
+        console.log('📌 Full BIN_IDS object:\n', JSON.stringify(this.binIds, null, 2));
+    },
+    
+    delay(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    },
+    
+    getBinIds() {
+        return { ...this.binIds };
     }
 };
 
 // ============================================
-// Global State
+// Admin State
 // ============================================
 
-const AppState = {
+const AdminState = {
     user: null,
     isAdmin: false,
-    isAuthenticated: false,
-    balance: 0,
+    initialized: false,
+    currentPage: 'dashboard',
     
-    // Data (loaded from JSONBin)
+    users: [],
+    orders: [],
+    topupRequests: [],
     categories: [],
     products: [],
-    orders: [],
     payments: [],
     bannersType1: [],
     bannersType2: [],
     inputTables: [],
+    bannedUsers: [],
+    broadcasts: [],
     settings: {
         siteName: 'Mafia Gaming Shop',
         logo: '',
-        theme: 'dark',
-        announcement: 'Welcome to Mafia Gaming Shop!'
+        announcement: 'Welcome!'
     },
     
-    // UI State
-    currentTab: 'home',
-    currentCategory: null,
-    selectedProduct: null,
-    inputValues: {},
+    stats: {
+        totalUsers: 0,
+        totalOrders: 0,
+        pendingOrders: 0,
+        approvedOrders: 0,
+        rejectedOrders: 0,
+        totalRevenue: 0,
+        pendingTopups: 0
+    },
     
-    // Purchase tracking
-    failedPurchaseAttempts: 0,
-    lastFailedAttemptDate: null
+    selectedUser: null,
+    selectedOrder: null,
+    selectedTopup: null
 };
 
 // ============================================
-// Telegram WebApp Helper
+// Telegram Helper
 // ============================================
 
-const TelegramHelper = {
-    tg: null,
+const AdminTG = {
+    webapp: null,
     
     init() {
         if (window.Telegram?.WebApp) {
-            this.tg = window.Telegram.WebApp;
-            this.tg.ready();
-            this.tg.expand();
+            this.webapp = window.Telegram.WebApp;
+            this.webapp.ready();
+            this.webapp.expand();
             return true;
         }
         return false;
     },
     
     getUser() {
-        return this.tg?.initDataUnsafe?.user || null;
+        return this.webapp?.initDataUnsafe?.user || null;
     },
     
     isAdmin(userId) {
-        return userId === CONFIG.ADMIN_ID || 
-               userId === CONFIG.ADMIN_ID_STR || 
-               String(userId) === CONFIG.ADMIN_ID_STR;
+        return String(userId) === ADMIN_CONFIG.ADMIN_ID_STR;
     },
     
     haptic(type = 'impact', style = 'light') {
         try {
-            if (type === 'impact') {
-                this.tg?.HapticFeedback?.impactOccurred(style);
-            } else if (type === 'notification') {
-                this.tg?.HapticFeedback?.notificationOccurred(style);
-            } else if (type === 'selection') {
-                this.tg?.HapticFeedback?.selectionChanged();
-            }
+            if (type === 'impact') this.webapp?.HapticFeedback?.impactOccurred(style);
+            else if (type === 'notification') this.webapp?.HapticFeedback?.notificationOccurred(style);
+            else this.webapp?.HapticFeedback?.selectionChanged();
         } catch (e) {}
     },
     
-    showAlert(message) {
-        return new Promise(resolve => {
-            if (this.tg?.showAlert) {
-                this.tg.showAlert(message, resolve);
-            } else {
-                alert(message);
-                resolve();
-            }
-        });
-    },
-    
-    showConfirm(message) {
-        return new Promise(resolve => {
-            if (this.tg?.showConfirm) {
-                this.tg.showConfirm(message, resolve);
-            } else {
-                resolve(confirm(message));
-            }
-        });
-    },
-    
-    close() {
-        this.tg?.close();
-    },
-    
-    getAvatarUrl(userId, photoUrl) {
-        if (photoUrl) return photoUrl;
-        return `https://ui-avatars.com/api/?name=${userId}&background=8B5CF6&color=fff&size=128`;
-    },
-    
     formatName(user) {
-        if (!user) return 'User';
-        return [user.first_name, user.last_name].filter(Boolean).join(' ') || 'User';
+        if (!user) return 'Admin';
+        return [user.first_name, user.last_name].filter(Boolean).join(' ') || 'Admin';
     },
     
-    openLink(url) {
-        if (this.tg?.openTelegramLink) {
-            this.tg.openTelegramLink(url);
-        } else {
-            window.open(url, '_blank');
-        }
-    },
-    
-    share(url, text) {
-        const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`;
-        this.openLink(shareUrl);
+    avatarUrl(userId) {
+        return `https://ui-avatars.com/api/?name=${userId}&background=8B5CF6&color=fff&size=128`;
     }
 };
 
 // ============================================
-// Toast Notifications
+// UI Helpers (Avoid conflicts with utils.js)
 // ============================================
 
-const Toast = {
-    container: null,
+function showAdminToast(type, title, message) {
+    if (typeof Toast !== 'undefined' && Toast.show) {
+        Toast.show(type, title, message);
+        return;
+    }
     
-    init() {
-        this.container = document.getElementById('toast-container');
-        if (!this.container) {
-            this.container = document.createElement('div');
-            this.container.className = 'toast-container';
-            this.container.id = 'toast-container';
-            document.body.appendChild(this.container);
-        }
-    },
+    let container = document.getElementById('admin-toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'admin-toast-container';
+        container.className = 'toast-container';
+        document.body.appendChild(container);
+    }
     
-    show(type, title, message, duration = 4000) {
-        if (!this.container) this.init();
-        
-        const icons = {
-            success: 'fas fa-check-circle',
-            error: 'fas fa-times-circle',
-            warning: 'fas fa-exclamation-triangle',
-            info: 'fas fa-info-circle'
-        };
-        
-        const toast = document.createElement('div');
-        toast.className = `toast ${type}`;
-        toast.innerHTML = `
-            <div class="toast-icon"><i class="${icons[type]}"></i></div>
-            <div class="toast-content">
-                <div class="toast-title">${title}</div>
-                <div class="toast-message">${message}</div>
-            </div>
-            <button class="toast-close"><i class="fas fa-times"></i></button>
-        `;
-        
-        toast.querySelector('.toast-close').onclick = () => this.remove(toast);
-        this.container.appendChild(toast);
-        
-        TelegramHelper.haptic('notification', type === 'success' ? 'success' : type === 'error' ? 'error' : 'warning');
-        
-        if (duration > 0) {
-            setTimeout(() => this.remove(toast), duration);
-        }
-    },
+    const icons = {
+        success: 'fa-check-circle',
+        error: 'fa-times-circle',
+        warning: 'fa-exclamation-triangle',
+        info: 'fa-info-circle'
+    };
     
-    remove(toast) {
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.innerHTML = `
+        <div class="toast-icon"><i class="fas ${icons[type]}"></i></div>
+        <div class="toast-content">
+            <div class="toast-title">${title}</div>
+            <div class="toast-message">${message}</div>
+        </div>
+        <button class="toast-close"><i class="fas fa-times"></i></button>
+    `;
+    
+    toast.querySelector('.toast-close').onclick = () => {
         toast.classList.add('toast-exit');
         setTimeout(() => toast.remove(), 300);
-    },
+    };
     
-    success(title, msg) { this.show('success', title, msg); },
-    error(title, msg) { this.show('error', title, msg); },
-    warning(title, msg) { this.show('warning', title, msg); },
-    info(title, msg) { this.show('info', title, msg); }
-};
+    container.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.classList.add('toast-exit');
+        setTimeout(() => toast.remove(), 300);
+    }, 4000);
+}
 
-// ============================================
-// Loading Overlay
-// ============================================
-
-const Loading = {
-    el: null,
-    
-    init() {
-        this.el = document.getElementById('loading-overlay');
-        if (!this.el) {
-            this.el = document.createElement('div');
-            this.el.className = 'loading-overlay hidden';
-            this.el.id = 'loading-overlay';
-            this.el.innerHTML = `
-                <div class="loading-spinner">
-                    <i class="fas fa-spinner fa-spin"></i>
-                    <p id="loading-text">Loading...</p>
-                </div>
-            `;
-            document.body.appendChild(this.el);
-        }
-    },
-    
-    show(text = 'Loading...') {
-        if (!this.el) this.init();
-        const textEl = this.el.querySelector('#loading-text');
-        if (textEl) textEl.textContent = text;
-        this.el.classList.remove('hidden');
-    },
-    
-    hide() {
-        if (this.el) this.el.classList.add('hidden');
-    },
-    
-    setText(text) {
-        const textEl = this.el?.querySelector('#loading-text');
-        if (textEl) textEl.textContent = text;
+function showAdminLoading(text = 'Loading...') {
+    if (typeof Loading !== 'undefined' && Loading.show) {
+        Loading.show(text);
+        return;
     }
-};
-
-// ============================================
-// Modal Helper
-// ============================================
-
-const Modal = {
-    open(id) {
-        const modal = document.getElementById(id);
-        if (modal) {
-            modal.classList.add('active');
-            document.body.style.overflow = 'hidden';
-            TelegramHelper.haptic('impact', 'light');
-        }
-    },
     
-    close(id) {
-        const modal = document.getElementById(id);
-        if (modal) {
-            modal.classList.remove('active');
-            document.body.style.overflow = '';
-        }
-    },
+    let overlay = document.getElementById('loading-overlay');
+    if (overlay) {
+        const textEl = overlay.querySelector('#loading-text');
+        if (textEl) textEl.textContent = text;
+        overlay.classList.remove('hidden');
+    }
+}
+
+function hideAdminLoading() {
+    if (typeof Loading !== 'undefined' && Loading.hide) {
+        Loading.hide();
+        return;
+    }
     
-    closeAll() {
-        document.querySelectorAll('.modal.active').forEach(m => m.classList.remove('active'));
+    const overlay = document.getElementById('loading-overlay');
+    if (overlay) overlay.classList.add('hidden');
+}
+
+function openAdminModal(id) {
+    if (typeof Modal !== 'undefined' && Modal.open) {
+        Modal.open(id);
+        return;
+    }
+    
+    const modal = document.getElementById(id);
+    if (modal) {
+        modal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+}
+
+function closeAdminModal(id) {
+    if (typeof Modal !== 'undefined' && Modal.close) {
+        Modal.close(id);
+        return;
+    }
+    
+    const modal = document.getElementById(id);
+    if (modal) {
+        modal.classList.remove('active');
         document.body.style.overflow = '';
     }
-};
+}
+
+function closeAllModals() {
+    document.querySelectorAll('.modal.active').forEach(m => m.classList.remove('active'));
+    document.body.style.overflow = '';
+}
 
 // ============================================
 // Format Helpers
 // ============================================
 
-const Format = {
-    currency(amount, currency = 'MMK') {
-        return `${Number(amount || 0).toLocaleString()} ${currency}`;
-    },
-    
-    date(dateStr, type = 'short') {
-        if (!dateStr) return '-';
-        const d = new Date(dateStr);
-        
-        if (type === 'relative') {
-            const now = new Date();
-            const diff = now - d;
-            const mins = Math.floor(diff / 60000);
-            const hours = Math.floor(diff / 3600000);
-            const days = Math.floor(diff / 86400000);
-            
-            if (mins < 1) return 'Just now';
-            if (mins < 60) return `${mins}m ago`;
-            if (hours < 24) return `${hours}h ago`;
-            if (days < 7) return `${days}d ago`;
-        }
-        
-        if (type === 'datetime') {
-            return d.toLocaleString('en-US', { 
-                month: 'short', day: 'numeric', year: 'numeric',
-                hour: '2-digit', minute: '2-digit'
-            });
-        }
-        
-        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    }
-};
-
-// ============================================
-// Utility Functions
-// ============================================
-
-function generateId(prefix = '') {
-    const timestamp = Date.now().toString(36);
-    const random = Math.random().toString(36).substring(2, 8);
-    return prefix ? `${prefix}_${timestamp}${random}` : `${timestamp}${random}`;
+function formatCurrency(amount, currency = 'MMK') {
+    return `${Number(amount || 0).toLocaleString()} ${currency}`;
 }
 
-function generateOrderId() {
-    const date = new Date();
-    const year = date.getFullYear().toString().slice(-2);
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    const day = date.getDate().toString().padStart(2, '0');
-    const random = Math.random().toString(36).substring(2, 6).toUpperCase();
-    return `ORD${year}${month}${day}${random}`;
+function formatDate(dateStr, type = 'short') {
+    if (!dateStr) return '-';
+    const d = new Date(dateStr);
+    
+    if (type === 'relative') {
+        const now = new Date();
+        const diff = now - d;
+        const mins = Math.floor(diff / 60000);
+        const hours = Math.floor(diff / 3600000);
+        const days = Math.floor(diff / 86400000);
+        
+        if (mins < 1) return 'Just now';
+        if (mins < 60) return `${mins}m ago`;
+        if (hours < 24) return `${hours}h ago`;
+        if (days < 7) return `${days}d ago`;
+    }
+    
+    if (type === 'datetime') {
+        return d.toLocaleString('en-US', { 
+            month: 'short', day: 'numeric', year: 'numeric',
+            hour: '2-digit', minute: '2-digit'
+        });
+    }
+    
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 async function fileToBase64(file) {
@@ -483,1037 +517,205 @@ async function fileToBase64(file) {
 }
 
 // ============================================
-// Main Application Class
+// Admin Panel Class
 // ============================================
 
-class MafiaGamingApp {
+class AdminPanel {
     constructor() {
-        this.initialized = false;
-        console.log('🎮 MafiaGamingApp created');
+        console.log('🔧 AdminPanel created');
     }
 
     async init() {
-        console.log('🚀 Initializing Mafia Gaming Shop...');
+        console.log('🚀 Initializing Admin Panel...');
         
         try {
-            // Initialize helpers
-            Toast.init();
-            Loading.init();
-            
             // Initialize Telegram
-            if (!TelegramHelper.init()) {
-                console.error('❌ Telegram WebApp not available');
+            if (!AdminTG.init()) {
                 this.showAccessDenied('Please open from Telegram Bot');
                 return;
             }
             
-            console.log('✅ Telegram WebApp ready');
-            
             // Get user
-            const user = TelegramHelper.getUser();
+            const user = AdminTG.getUser();
             if (!user) {
-                console.error('❌ No user data');
                 this.showAccessDenied('Could not get user data');
                 return;
             }
             
-            AppState.user = user;
-            AppState.isAdmin = TelegramHelper.isAdmin(user.id);
-            AppState.isAuthenticated = true;
+            AdminState.user = user;
+            console.log('👤 User:', user.first_name, '| ID:', user.id);
             
-            console.log('👤 User:', user.first_name, '| Admin:', AppState.isAdmin);
-            
-            // Check if banned
-            Loading.show('Checking access...');
-            const isBanned = await this.checkIfBanned();
-            if (isBanned) {
-                Loading.hide();
-                this.showBannedScreen();
+            // Check admin
+            if (!AdminTG.isAdmin(user.id)) {
+                this.showAccessDenied(`Access Denied. Your ID (${user.id}) is not authorized.`);
                 return;
             }
             
-            // Play intro animation
-            await this.playIntro();
+            AdminState.isAdmin = true;
+            console.log('✅ Admin verified!');
             
             // Initialize database
-            Loading.show('Connecting to database...');
-            const dbReady = await JSONBinDB.init();
+            showAdminLoading('Connecting to database...');
+            const dbReady = await AdminDB.init();
             
             if (!dbReady) {
-                Loading.hide();
-                this.showSetupRequired();
+                hideAdminLoading();
+                showAdminToast('error', 'Database Error', 'Failed to initialize database');
                 return;
             }
             
-            // Load all data
+            // Load data
             await this.loadAllData();
             
-            // Register/update user
-            await this.registerUser();
+            // Show panel
+            await this.showAdminPanel();
             
-            // Setup UI
-            this.setupUI();
+            hideAdminLoading();
+            AdminState.initialized = true;
             
-            // Setup event listeners
-            this.setupEventListeners();
-            
-            // Start real-time sync
-            this.startRealTimeSync();
-            
-            Loading.hide();
-            this.initialized = true;
-            
-            console.log('✅ Mafia Gaming Shop initialized!');
-            Toast.success('Welcome!', `Hello, ${user.first_name}!`);
+            console.log('✅ Admin Panel ready!');
+            showAdminToast('success', 'Welcome!', `Hello, ${user.first_name}!`);
             
         } catch (error) {
             console.error('❌ Init error:', error);
-            Loading.hide();
-            Toast.error('Error', 'Failed to initialize app');
+            hideAdminLoading();
+            this.showAccessDenied('Initialization failed: ' + error.message);
         }
     }
 
-    showAccessDenied(message = 'Access Denied') {
-        const introScreen = document.getElementById('intro-screen');
-        const mainApp = document.getElementById('main-app');
-        const accessDenied = document.getElementById('access-denied');
+    showAccessDenied(message) {
+        hideAdminLoading();
         
-        if (introScreen) introScreen.classList.add('hidden');
-        if (mainApp) mainApp.classList.add('hidden');
+        document.getElementById('admin-verify-screen')?.classList.add('hidden');
+        document.getElementById('admin-panel')?.classList.add('hidden');
         
-        if (accessDenied) {
-            accessDenied.classList.remove('hidden');
-            const msgEl = accessDenied.querySelector('p');
-            if (msgEl) msgEl.textContent = message;
+        const denied = document.getElementById('admin-access-denied');
+        if (denied) {
+            denied.classList.remove('hidden');
+            const msg = denied.querySelector('p');
+            if (msg) msg.textContent = message;
         }
     }
 
-    showBannedScreen() {
-        this.showAccessDenied('Your account has been banned');
-    }
-
-    showSetupRequired() {
-        const introScreen = document.getElementById('intro-screen');
-        const mainApp = document.getElementById('main-app');
+    async showAdminPanel() {
+        document.getElementById('admin-access-denied')?.classList.add('hidden');
+        document.getElementById('admin-verify-screen')?.classList.add('hidden');
         
-        if (introScreen) introScreen.classList.add('hidden');
+        const panel = document.getElementById('admin-panel');
+        if (panel) panel.classList.remove('hidden');
         
-        if (mainApp) {
-            mainApp.classList.remove('hidden');
-            mainApp.innerHTML = `
-                <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;text-align:center;padding:20px;">
-                    <i class="fas fa-database" style="font-size:60px;color:var(--primary);margin-bottom:20px;"></i>
-                    <h2 style="margin-bottom:10px;">Database Setup Required</h2>
-                    <p style="color:var(--text-secondary);margin-bottom:20px;">
-                        Admin needs to set up the database first.<br>
-                        Please contact the administrator.
-                    </p>
-                    <button onclick="location.reload()" style="
-                        padding:12px 30px;
-                        background:var(--primary);
-                        color:white;
-                        border:none;
-                        border-radius:25px;
-                        font-size:16px;
-                        cursor:pointer;
-                    ">
-                        <i class="fas fa-redo"></i> Retry
-                    </button>
-                </div>
-            `;
-        }
+        this.updateAdminInfo();
+        this.setupEventListeners();
+        this.loadDashboard();
     }
 
-    async checkIfBanned() {
-        try {
-            const bannedUsers = await JSONBinDB.read('bannedUsers') || [];
-            return bannedUsers.some(u => String(u.id) === String(AppState.user.id));
-        } catch (error) {
-            return false;
+    updateAdminInfo() {
+        const user = AdminState.user;
+        if (!user) return;
+        
+        const name = AdminTG.formatName(user);
+        
+        const nameEl = document.getElementById('admin-name');
+        if (nameEl) nameEl.textContent = name;
+        
+        const avatarEl = document.getElementById('admin-avatar');
+        if (avatarEl) avatarEl.src = AdminTG.avatarUrl(user.id);
+        
+        const sidebarLogo = document.getElementById('sidebar-logo');
+        if (sidebarLogo) {
+            sidebarLogo.src = AdminState.settings.logo || AdminTG.avatarUrl('MG');
         }
-    }
-
-    async playIntro() {
-        return new Promise(resolve => {
-            const introScreen = document.getElementById('intro-screen');
-            const mainApp = document.getElementById('main-app');
-            
-            // Update intro with settings
-            const introLogo = document.getElementById('intro-logo');
-            const introSiteName = document.getElementById('intro-site-name');
-            
-            if (AppState.settings.logo && introLogo) {
-                introLogo.src = AppState.settings.logo;
-            }
-            if (AppState.settings.siteName && introSiteName) {
-                introSiteName.textContent = AppState.settings.siteName;
-            }
-            
-            // Wait for intro
-            setTimeout(() => {
-                if (introScreen) {
-                    introScreen.style.opacity = '0';
-                    introScreen.style.transition = 'opacity 0.5s';
-                }
-                
-                setTimeout(() => {
-                    if (introScreen) introScreen.classList.add('hidden');
-                    if (mainApp) mainApp.classList.remove('hidden');
-                    resolve();
-                }, 500);
-            }, 3000);
-        });
+        
+        const sidebarName = document.getElementById('sidebar-site-name');
+        if (sidebarName) sidebarName.textContent = AdminState.settings.siteName;
     }
 
     async loadAllData() {
-        console.log('📦 Loading all data from JSONBin...');
-        Loading.show('Loading shop data...');
+        console.log('📦 Loading all data...');
+        showAdminLoading('Loading data...');
         
         try {
             const [
-                categories, products, orders, payments,
-                bannersType1, bannersType2, inputTables, settings
+                users, categories, products, orders, topupRequests,
+                payments, bannersType1, bannersType2, inputTables,
+                bannedUsers, broadcasts, settings
             ] = await Promise.all([
-                JSONBinDB.read('categories'),
-                JSONBinDB.read('products'),
-                JSONBinDB.read('orders'),
-                JSONBinDB.read('payments'),
-                JSONBinDB.read('bannersType1'),
-                JSONBinDB.read('bannersType2'),
-                JSONBinDB.read('inputTables'),
-                JSONBinDB.read('settings')
+                AdminDB.read('users'),
+                AdminDB.read('categories'),
+                AdminDB.read('products'),
+                AdminDB.read('orders'),
+                AdminDB.read('topupRequests'),
+                AdminDB.read('payments'),
+                AdminDB.read('bannersType1'),
+                AdminDB.read('bannersType2'),
+                AdminDB.read('inputTables'),
+                AdminDB.read('bannedUsers'),
+                AdminDB.read('broadcasts'),
+                AdminDB.read('settings')
             ]);
             
-            AppState.categories = categories || [];
-            AppState.products = (products || []).filter(p => p.active !== false);
-            AppState.orders = (orders || []).filter(o => String(o.userId) === String(AppState.user.id));
-            AppState.payments = (payments || []).filter(p => p.active !== false);
-            AppState.bannersType1 = bannersType1 || [];
-            AppState.bannersType2 = bannersType2 || [];
-            AppState.inputTables = inputTables || [];
+            AdminState.users = users || [];
+            AdminState.categories = categories || [];
+            AdminState.products = products || [];
+            AdminState.orders = orders || [];
+            AdminState.topupRequests = topupRequests || [];
+            AdminState.payments = payments || [];
+            AdminState.bannersType1 = bannersType1 || [];
+            AdminState.bannersType2 = bannersType2 || [];
+            AdminState.inputTables = inputTables || [];
+            AdminState.bannedUsers = bannedUsers || [];
+            AdminState.broadcasts = broadcasts || [];
+            AdminState.settings = settings || AdminDB.defaultData.settings;
             
-            if (settings) {
-                AppState.settings = { ...AppState.settings, ...settings };
-            }
+            this.calculateStats();
             
             console.log('✅ Data loaded:', {
-                categories: AppState.categories.length,
-                products: AppState.products.length,
-                orders: AppState.orders.length
+                users: AdminState.users.length,
+                categories: AdminState.categories.length,
+                products: AdminState.products.length,
+                orders: AdminState.orders.length
             });
             
         } catch (error) {
-            console.error('❌ Load data error:', error);
+            console.error('Load error:', error);
         }
         
-        Loading.hide();
+        hideAdminLoading();
     }
 
-    async registerUser() {
-        try {
-            let users = await JSONBinDB.read('users') || [];
-            const existingIndex = users.findIndex(u => String(u.id) === String(AppState.user.id));
-            
-            if (existingIndex !== -1) {
-                // Update existing user
-                users[existingIndex].lastActive = new Date().toISOString();
-                users[existingIndex].username = AppState.user.username;
-                users[existingIndex].firstName = AppState.user.first_name;
-                users[existingIndex].lastName = AppState.user.last_name;
-                users[existingIndex].isPremium = AppState.user.is_premium || false;
-                
-                AppState.balance = users[existingIndex].balance || 0;
-            } else {
-                // Register new user
-                const newUser = {
-                    id: AppState.user.id,
-                    username: AppState.user.username,
-                    firstName: AppState.user.first_name,
-                    lastName: AppState.user.last_name,
-                    isPremium: AppState.user.is_premium || false,
-                    balance: 0,
-                    totalOrders: 0,
-                    completedOrders: 0,
-                    rejectedOrders: 0,
-                    totalTopup: 0,
-                    joinedAt: new Date().toISOString(),
-                    lastActive: new Date().toISOString()
-                };
-                
-                users.push(newUser);
-                AppState.balance = 0;
-            }
-            
-            await JSONBinDB.write('users', users);
-            console.log('✅ User registered/updated');
-            
-        } catch (error) {
-            console.error('❌ Register user error:', error);
-        }
-    }
-
-    setupUI() {
-        // Update header
-        this.updateHeader();
+    async saveData(dataType) {
+        console.log(`💾 Saving ${dataType}...`);
+        const success = await AdminDB.write(dataType, AdminState[dataType]);
         
-        // Update user info
-        this.updateUserInfo();
-        
-        // Update admin access
-        this.updateAdminAccess();
-        
-        // Load home content
-        this.loadHomeContent();
-        
-        // Update balance
-        this.updateBalanceDisplay();
-    }
-
-    updateHeader() {
-        const headerLogo = document.getElementById('header-logo');
-        const headerSiteName = document.getElementById('header-site-name');
-        
-        if (AppState.settings.logo && headerLogo) {
-            headerLogo.src = AppState.settings.logo;
-        }
-        if (AppState.settings.siteName && headerSiteName) {
-            headerSiteName.textContent = AppState.settings.siteName;
-        }
-    }
-
-    updateUserInfo() {
-        const userAvatar = document.getElementById('user-avatar');
-        const userName = document.getElementById('user-name');
-        const premiumBadge = document.getElementById('premium-badge');
-        
-        if (userAvatar) {
-            userAvatar.src = TelegramHelper.getAvatarUrl(AppState.user.id, AppState.user.photo_url);
-        }
-        if (userName) {
-            userName.textContent = TelegramHelper.formatName(AppState.user);
-        }
-        if (premiumBadge && AppState.user.is_premium) {
-            premiumBadge.style.display = 'flex';
-        }
-    }
-
-    updateAdminAccess() {
-        const adminTab = document.getElementById('admin-tab');
-        if (adminTab) {
-            adminTab.style.display = AppState.isAdmin ? 'flex' : 'none';
-        }
-    }
-
-    updateBalanceDisplay() {
-        const balanceEl = document.getElementById('user-balance');
-        if (balanceEl) {
-            balanceEl.textContent = Format.currency(AppState.balance);
+        if (!success) {
+            showAdminToast('error', 'Save Error', `Failed to save ${dataType}`);
         }
         
-        const statBalance = document.getElementById('stat-balance');
-        if (statBalance) {
-            statBalance.textContent = Format.currency(AppState.balance);
-        }
+        return success;
     }
 
-    loadHomeContent() {
-        this.loadBanners();
-        this.loadAnnouncement();
-        this.loadCategories();
-        this.loadFeaturedProducts();
-    }
-
-    loadBanners() {
-        const container = document.getElementById('banner-slides');
-        if (!container) return;
-        
-        if (AppState.bannersType1.length === 0) {
-            container.innerHTML = `
-                <div class="banner-placeholder">
-                    <i class="fas fa-image"></i>
-                    <span>No Banners</span>
-                </div>
-            `;
-            return;
-        }
-        
-        container.innerHTML = AppState.bannersType1.map(banner => `
-            <div class="banner-slide">
-                <img src="${banner.image}" alt="Banner" loading="lazy">
-            </div>
-        `).join('');
-        
-        // Simple carousel
-        this.initBannerCarousel();
-    }
-
-    initBannerCarousel() {
-        const slides = document.querySelectorAll('.banner-slide');
-        if (slides.length <= 1) return;
-        
-        let current = 0;
-        
-        setInterval(() => {
-            slides[current].classList.remove('active');
-            current = (current + 1) % slides.length;
-            slides[current].classList.add('active');
-        }, 5000);
-        
-        if (slides[0]) slides[0].classList.add('active');
-    }
-
-    loadAnnouncement() {
-        const ticker = document.getElementById('ticker-content');
-        if (ticker && AppState.settings.announcement) {
-            ticker.innerHTML = `<span>${AppState.settings.announcement}</span>`;
-        }
-    }
-
-    loadCategories() {
-        const grid = document.getElementById('categories-grid');
-        if (!grid) return;
-        
-        if (AppState.categories.length === 0) {
-            grid.innerHTML = `
-                <div class="empty-state" style="grid-column:1/-1;">
-                    <i class="fas fa-gamepad"></i>
-                    <p>No categories available</p>
-                </div>
-            `;
-            return;
-        }
-        
-        grid.innerHTML = AppState.categories.map(cat => {
-            const productCount = AppState.products.filter(p => p.categoryId === cat.id).length;
-            
-            return `
-                <div class="category-card" data-category-id="${cat.id}">
-                    <div class="category-icon-wrapper">
-                        ${cat.icon ? `<img src="${cat.icon}" alt="${cat.name}" class="category-icon">` : 
-                          '<i class="fas fa-gamepad" style="font-size:40px;color:var(--primary);"></i>'}
-                        ${cat.flag ? `<span class="category-flag">${cat.flag}</span>` : ''}
-                        ${cat.hasDiscount ? '<span class="category-discount-badge">SALE</span>' : ''}
-                    </div>
-                    <span class="category-name">${cat.name}</span>
-                    <span class="category-sold">${productCount} products</span>
-                </div>
-            `;
-        }).join('');
-        
-        // Add click handlers
-        grid.querySelectorAll('.category-card').forEach(card => {
-            card.addEventListener('click', () => {
-                this.openCategory(card.dataset.categoryId);
-            });
-        });
-    }
-
-    loadFeaturedProducts() {
-        const grid = document.getElementById('featured-products');
-        if (!grid) return;
-        
-        const featured = AppState.products.filter(p => p.hasDiscount).slice(0, 4);
-        
-        if (featured.length === 0) {
-            grid.innerHTML = `
-                <div class="empty-state" style="grid-column:1/-1;">
-                    <i class="fas fa-fire"></i>
-                    <p>No featured products</p>
-                </div>
-            `;
-            return;
-        }
-        
-        grid.innerHTML = featured.map(p => this.createProductCard(p)).join('');
-    }
-
-    createProductCard(product) {
-        const price = product.hasDiscount 
-            ? product.price - (product.price * product.discount / 100)
-            : product.price;
-        
-        return `
-            <div class="product-card" data-product-id="${product.id}">
-                <div class="product-image">
-                    ${product.icon ? `<img src="${product.icon}" alt="${product.name}">` :
-                      '<i class="fas fa-box" style="font-size:40px;color:var(--primary);"></i>'}
-                    ${product.hasDiscount ? `<span class="product-discount-badge">-${product.discount}%</span>` : ''}
-                </div>
-                <div class="product-info">
-                    <h4 class="product-name">${product.name}</h4>
-                    <div class="product-price">
-                        <span class="price-current">${Format.currency(price, product.currency)}</span>
-                        ${product.hasDiscount ? `<span class="price-original">${Format.currency(product.price, product.currency)}</span>` : ''}
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-
-    openCategory(categoryId) {
-        const category = AppState.categories.find(c => c.id === categoryId);
-        if (!category) return;
-        
-        AppState.currentCategory = category;
-        
-        // Hide home, show category page
-        document.getElementById('home-tab')?.classList.remove('active');
-        const categoryPage = document.getElementById('category-page');
-        if (categoryPage) {
-            categoryPage.classList.remove('hidden');
-            categoryPage.classList.add('active');
-        }
-        
-        // Update header
-        const catIcon = document.getElementById('category-icon');
-        const catName = document.getElementById('category-name');
-        if (catIcon) catIcon.src = category.icon || '';
-        if (catName) catName.textContent = category.name;
-        
-        // Load content
-        this.loadInputTables(categoryId);
-        this.loadCategoryProducts(categoryId);
-        this.loadCategoryBanner(categoryId);
-        
-        TelegramHelper.haptic('impact', 'light');
-    }
-
-    closeCategory() {
-        AppState.currentCategory = null;
-        AppState.selectedProduct = null;
-        AppState.inputValues = {};
-        
-        const categoryPage = document.getElementById('category-page');
-        if (categoryPage) {
-            categoryPage.classList.add('hidden');
-            categoryPage.classList.remove('active');
-        }
-        
-        document.getElementById('home-tab')?.classList.add('active');
-        this.hideBuyButton();
-    }
-
-    loadInputTables(categoryId) {
-        const container = document.getElementById('input-tables-container');
-        if (!container) return;
-        
-        const tables = AppState.inputTables.filter(t => t.categoryId === categoryId);
-        
-        if (tables.length === 0) {
-            container.innerHTML = '';
-            container.style.display = 'none';
-            return;
-        }
-        
-        container.style.display = 'block';
-        container.innerHTML = tables.map(table => `
-            <div class="input-table-group">
-                <label>${table.name} ${table.required ? '<span style="color:var(--danger);">*</span>' : ''}</label>
-                <input type="text" 
-                       class="input-table-field" 
-                       placeholder="${table.placeholder || ''}"
-                       data-table-id="${table.id}"
-                       ${table.required ? 'required' : ''}>
-            </div>
-        `).join('');
-        
-        // Input handlers
-        container.querySelectorAll('.input-table-field').forEach(input => {
-            input.addEventListener('input', (e) => {
-                AppState.inputValues[e.target.dataset.tableId] = e.target.value;
-            });
-        });
-    }
-
-    loadCategoryProducts(categoryId) {
-        const grid = document.getElementById('products-grid');
-        if (!grid) return;
-        
-        const products = AppState.products.filter(p => p.categoryId === categoryId);
-        
-        if (products.length === 0) {
-            grid.innerHTML = `
-                <div class="empty-state" style="grid-column:1/-1;">
-                    <i class="fas fa-box-open"></i>
-                    <p>No products available</p>
-                </div>
-            `;
-            return;
-        }
-        
-        grid.innerHTML = products.map(p => this.createProductCard(p)).join('');
-        
-        // Click handlers
-        grid.querySelectorAll('.product-card').forEach(card => {
-            card.addEventListener('click', () => {
-                this.selectProduct(card.dataset.productId);
-            });
-        });
-    }
-
-    loadCategoryBanner(categoryId) {
-        const section = document.getElementById('category-banner');
-        if (!section) return;
-        
-        const banner = AppState.bannersType2.find(b => b.categoryId === categoryId);
-        
-        if (!banner) {
-            section.style.display = 'none';
-            return;
-        }
-        
-        section.style.display = 'block';
-        section.innerHTML = `
-            <img src="${banner.image}" alt="Banner" style="width:100%;border-radius:12px;">
-            ${banner.instructions ? `<div class="banner-instructions"><p>${banner.instructions}</p></div>` : ''}
-        `;
-    }
-
-    selectProduct(productId) {
-        const product = AppState.products.find(p => p.id === productId);
-        if (!product) return;
-        
-        // Deselect previous
-        document.querySelectorAll('.product-card.selected').forEach(c => c.classList.remove('selected'));
-        
-        // Select new
-        const card = document.querySelector(`.product-card[data-product-id="${productId}"]`);
-        if (card) card.classList.add('selected');
-        
-        AppState.selectedProduct = product;
-        this.showBuyButton(product);
-        
-        TelegramHelper.haptic('selection');
-    }
-
-    showBuyButton(product) {
-        let section = document.querySelector('.buy-now-section');
-        
-        if (!section) {
-            section = document.createElement('div');
-            section.className = 'buy-now-section';
-            document.body.appendChild(section);
-        }
-        
-        const price = product.hasDiscount 
-            ? product.price - (product.price * product.discount / 100)
-            : product.price;
-        
-        section.innerHTML = `
-            <div class="selected-product-preview">
-                ${product.icon ? `<img src="${product.icon}" alt="${product.name}">` : ''}
-                <div class="info">
-                    <span class="name">${product.name}</span>
-                    <span class="price">${Format.currency(price, product.currency)}</span>
-                </div>
-            </div>
-            <button class="buy-now-btn" id="buy-now-btn">
-                <i class="fas fa-shopping-cart"></i> Buy Now
-            </button>
-        `;
-        
-        section.style.display = 'flex';
-        
-        document.getElementById('buy-now-btn').addEventListener('click', () => {
-            this.initiatePurchase();
-        });
-    }
-
-    hideBuyButton() {
-        const section = document.querySelector('.buy-now-section');
-        if (section) section.style.display = 'none';
-    }
-
-    // ============================================
-    // Purchase System
-    // ============================================
-
-    initiatePurchase() {
-        if (!AppState.selectedProduct) {
-            Toast.warning('Warning', 'Please select a product');
-            return;
-        }
-        
-        // Validate inputs
-        const tables = AppState.inputTables.filter(t => t.categoryId === AppState.currentCategory?.id);
-        
-        for (const table of tables) {
-            if (table.required && !AppState.inputValues[table.id]) {
-                Toast.warning('Required', `Please enter ${table.name}`);
-                TelegramHelper.haptic('notification', 'error');
-                return;
-            }
-        }
-        
-        // Check balance
-        const product = AppState.selectedProduct;
-        const price = product.hasDiscount 
-            ? product.price - (product.price * product.discount / 100)
-            : product.price;
-        
-        if (AppState.balance < price) {
-            Toast.error('Insufficient Balance', 'Please topup first');
-            TelegramHelper.haptic('notification', 'error');
-            return;
-        }
-        
-        // Open confirmation modal
-        this.openPurchaseModal(product, price);
-    }
-
-    openPurchaseModal(product, price) {
-        const modal = document.getElementById('purchase-modal');
-        if (!modal) return;
-        
-        // Update modal content
-        const iconEl = document.getElementById('purchase-product-icon');
-        const nameEl = document.getElementById('purchase-product-name');
-        const priceEl = document.getElementById('purchase-product-price');
-        const balanceEl = document.getElementById('purchase-balance');
-        const remainingEl = document.getElementById('purchase-remaining');
-        
-        if (iconEl) iconEl.src = product.icon || '';
-        if (nameEl) nameEl.textContent = product.name;
-        if (priceEl) priceEl.textContent = Format.currency(price, product.currency);
-        if (balanceEl) balanceEl.textContent = Format.currency(AppState.balance);
-        if (remainingEl) remainingEl.textContent = Format.currency(AppState.balance - price);
-        
-        Modal.open('purchase-modal');
-    }
-
-    async confirmPurchase() {
-        Loading.show('Processing purchase...');
-        
-        try {
-            const product = AppState.selectedProduct;
-            const price = product.hasDiscount 
-                ? product.price - (product.price * product.discount / 100)
-                : product.price;
-            
-            // Create order
-            const order = {
-                id: generateOrderId(),
-                oderId: generateOrderId(),
-                userId: AppState.user.id,
-                userName: TelegramHelper.formatName(AppState.user),
-                userUsername: AppState.user.username,
-                productId: product.id,
-                productName: product.name,
-                productIcon: product.icon,
-                categoryId: AppState.currentCategory.id,
-                categoryName: AppState.currentCategory.name,
-                price: price,
-                currency: product.currency || 'MMK',
-                inputValues: { ...AppState.inputValues },
-                status: 'pending',
-                createdAt: new Date().toISOString()
-            };
-            
-            // Save order
-            let orders = await JSONBinDB.read('orders') || [];
-            orders.push(order);
-            await JSONBinDB.write('orders', orders);
-            
-            // Deduct balance
-            let users = await JSONBinDB.read('users') || [];
-            const userIndex = users.findIndex(u => String(u.id) === String(AppState.user.id));
-            if (userIndex !== -1) {
-                users[userIndex].balance -= price;
-                users[userIndex].totalOrders = (users[userIndex].totalOrders || 0) + 1;
-                AppState.balance = users[userIndex].balance;
-                await JSONBinDB.write('users', users);
-            }
-            
-            // Update local state
-            AppState.orders.push(order);
-            
-            Modal.close('purchase-modal');
-            Loading.hide();
-            
-            Toast.success('Order Placed!', 'Your order is pending approval');
-            TelegramHelper.haptic('notification', 'success');
-            
-            // Reset
-            AppState.selectedProduct = null;
-            AppState.inputValues = {};
-            this.hideBuyButton();
-            this.updateBalanceDisplay();
-            
-            document.querySelectorAll('.product-card.selected').forEach(c => c.classList.remove('selected'));
-            document.querySelectorAll('.input-table-field').forEach(i => i.value = '');
-            
-        } catch (error) {
-            console.error('Purchase error:', error);
-            Loading.hide();
-            Toast.error('Error', 'Failed to process purchase');
-        }
-    }
-
-    // ============================================
-    // Topup System
-    // ============================================
-
-    openTopupModal() {
-        this.loadPaymentMethods();
-        Modal.open('topup-modal');
-    }
-
-    loadPaymentMethods() {
-        const container = document.getElementById('payment-methods');
-        const form = document.getElementById('payment-form');
-        
-        if (!container) return;
-        
-        container.classList.remove('hidden');
-        form?.classList.add('hidden');
-        
-        if (AppState.payments.length === 0) {
-            container.innerHTML = `
-                <div class="empty-state">
-                    <i class="fas fa-credit-card"></i>
-                    <p>No payment methods available</p>
-                </div>
-            `;
-            return;
-        }
-        
-        container.innerHTML = AppState.payments.map(p => `
-            <div class="payment-method-card" data-payment-id="${p.id}">
-                ${p.icon ? `<img src="${p.icon}" alt="${p.name}">` : '<i class="fas fa-credit-card"></i>'}
-                <span>${p.name}</span>
-            </div>
-        `).join('');
-        
-        container.querySelectorAll('.payment-method-card').forEach(card => {
-            card.addEventListener('click', () => {
-                this.selectPaymentMethod(card.dataset.paymentId);
-            });
-        });
-    }
-
-    selectPaymentMethod(paymentId) {
-        const payment = AppState.payments.find(p => p.id === paymentId);
-        if (!payment) return;
-        
-        AppState.selectedPayment = payment;
-        
-        document.getElementById('payment-methods')?.classList.add('hidden');
-        document.getElementById('payment-form')?.classList.remove('hidden');
-        
-        const iconEl = document.getElementById('selected-payment-icon');
-        const nameEl = document.getElementById('selected-payment-name');
-        const addressEl = document.getElementById('selected-payment-address');
-        const holderEl = document.getElementById('selected-payment-holder');
-        
-        if (iconEl) iconEl.src = payment.icon || '';
-        if (nameEl) nameEl.textContent = payment.name;
-        if (addressEl) addressEl.textContent = payment.address;
-        if (holderEl) holderEl.textContent = payment.holder;
-        
-        TelegramHelper.haptic('selection');
-    }
-
-    async submitTopupRequest() {
-        const amount = parseFloat(document.getElementById('topup-amount')?.value || 0);
-        
-        if (amount < 1000) {
-            Toast.warning('Invalid', 'Minimum topup is 1,000 MMK');
-            return;
-        }
-        
-        if (!AppState.topupScreenshot) {
-            Toast.warning('Required', 'Please upload payment screenshot');
-            return;
-        }
-        
-        Loading.show('Submitting...');
-        
-        try {
-            const request = {
-                id: generateId('topup'),
-                oderId: generateOrderId(),
-                userId: AppState.user.id,
-                userName: TelegramHelper.formatName(AppState.user),
-                amount: amount,
-                paymentMethod: AppState.selectedPayment?.name,
-                screenshot: AppState.topupScreenshot,
-                status: 'pending',
-                createdAt: new Date().toISOString()
-            };
-            
-            let topups = await JSONBinDB.read('topupRequests') || [];
-            topups.push(request);
-            await JSONBinDB.write('topupRequests', topups);
-            
-            Modal.close('topup-modal');
-            this.resetTopupModal();
-            
-            Toast.success('Submitted', 'Topup request pending approval');
-            TelegramHelper.haptic('notification', 'success');
-            
-        } catch (error) {
-            console.error('Topup error:', error);
-            Toast.error('Error', 'Failed to submit request');
-        }
-        
-        Loading.hide();
-    }
-
-    resetTopupModal() {
-        document.getElementById('topup-amount').value = '';
-        document.getElementById('payment-screenshot').value = '';
-        document.getElementById('payment-methods')?.classList.remove('hidden');
-        document.getElementById('payment-form')?.classList.add('hidden');
-        
-        const preview = document.getElementById('file-preview');
-        const content = document.querySelector('#file-upload .file-upload-content');
-        if (preview) preview.classList.add('hidden');
-        if (content) content.classList.remove('hidden');
-        
-        AppState.selectedPayment = null;
-        AppState.topupScreenshot = null;
-    }
-
-    // ============================================
-    // Orders & History
-    // ============================================
-
-    async loadOrders() {
-        const list = document.getElementById('orders-list');
-        if (!list) return;
-        
-        Loading.show('Loading orders...');
-        
-        try {
-            const allOrders = await JSONBinDB.read('orders') || [];
-            AppState.orders = allOrders.filter(o => String(o.userId) === String(AppState.user.id));
-            
-            if (AppState.orders.length === 0) {
-                list.innerHTML = `
-                    <div class="empty-state">
-                        <i class="fas fa-box-open"></i>
-                        <p>No orders yet</p>
-                    </div>
-                `;
-                Loading.hide();
-                return;
-            }
-            
-            const sorted = [...AppState.orders].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-            
-            list.innerHTML = sorted.map(order => `
-                <div class="order-card" data-status="${order.status}">
-                    <div class="order-header">
-                        <span class="order-id">${order.id}</span>
-                        <span class="order-status ${order.status}">${order.status}</span>
-                    </div>
-                    <div class="order-body">
-                        ${order.productIcon ? `<img src="${order.productIcon}" class="order-product-icon">` : ''}
-                        <div class="order-details">
-                            <span class="order-product-name">${order.productName}</span>
-                            <span class="order-product-amount">${order.categoryName}</span>
-                        </div>
-                        <div class="order-price">
-                            <span>${Format.currency(order.price, order.currency)}</span>
-                            <span class="order-date">${Format.date(order.createdAt, 'relative')}</span>
-                        </div>
-                    </div>
-                </div>
-            `).join('');
-            
-        } catch (error) {
-            console.error('Load orders error:', error);
-            list.innerHTML = `<div class="empty-state"><p>Error loading orders</p></div>`;
-        }
-        
-        Loading.hide();
-    }
-
-    async loadHistory() {
-        const list = document.getElementById('history-list');
-        if (!list) return;
-        
-        Loading.show('Loading history...');
-        
-        try {
-            const allOrders = await JSONBinDB.read('orders') || [];
-            const userOrders = allOrders.filter(o => String(o.userId) === String(AppState.user.id));
-            
-            const allTopups = await JSONBinDB.read('topupRequests') || [];
-            const userTopups = allTopups.filter(t => String(t.userId) === String(AppState.user.id));
-            
-            const history = [
-                ...userOrders.map(o => ({ ...o, type: 'order' })),
-                ...userTopups.map(t => ({ ...t, type: 'topup' }))
-            ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-            
-            if (history.length === 0) {
-                list.innerHTML = `
-                    <div class="empty-state">
-                        <i class="fas fa-receipt"></i>
-                        <p>No transactions yet</p>
-                    </div>
-                `;
-                Loading.hide();
-                return;
-            }
-            
-            list.innerHTML = history.map(item => {
-                const isTopup = item.type === 'topup';
-                const icon = isTopup ? 'fas fa-arrow-down' : 'fas fa-shopping-cart';
-                const title = isTopup ? 'Balance Topup' : item.productName;
-                
-                return `
-                    <div class="history-card" data-type="${item.type}">
-                        <div class="history-icon ${item.type}"><i class="${icon}"></i></div>
-                        <div class="history-details">
-                            <span class="history-title">${title}</span>
-                            <span class="history-subtitle">${item.status} • ${Format.date(item.createdAt, 'relative')}</span>
-                        </div>
-                        <span class="history-amount">${Format.currency(item.amount || item.price)}</span>
-                    </div>
-                `;
-            }).join('');
-            
-        } catch (error) {
-            console.error('Load history error:', error);
-        }
-        
-        Loading.hide();
-    }
-
-    async loadProfile() {
-        try {
-            const users = await JSONBinDB.read('users') || [];
-            const userData = users.find(u => String(u.id) === String(AppState.user.id));
-            
-            if (userData) {
-                AppState.balance = userData.balance || 0;
-            }
-            
-            // Update UI
-            const avatar = document.getElementById('profile-avatar');
-            const name = document.getElementById('profile-name');
-            const username = document.getElementById('profile-username');
-            
-            if (avatar) avatar.src = TelegramHelper.getAvatarUrl(AppState.user.id);
-            if (name) name.textContent = TelegramHelper.formatName(AppState.user);
-            if (username) username.textContent = `@${AppState.user.username || 'N/A'}`;
-            
-            // Stats
-            const statBalance = document.getElementById('stat-balance');
-            const statOrders = document.getElementById('stat-orders');
-            const statCompleted = document.getElementById('stat-completed');
-            
-            if (statBalance) statBalance.textContent = Format.currency(AppState.balance);
-            if (statOrders) statOrders.textContent = userData?.totalOrders || 0;
-            if (statCompleted) statCompleted.textContent = userData?.completedOrders || 0;
-            
-            this.updateBalanceDisplay();
-            
-        } catch (error) {
-            console.error('Load profile error:', error);
-        }
+    calculateStats() {
+        const orders = AdminState.orders;
+        const topups = AdminState.topupRequests;
+        
+        AdminState.stats = {
+            totalUsers: AdminState.users.length,
+            totalOrders: orders.length,
+            pendingOrders: orders.filter(o => o.status === 'pending').length,
+            approvedOrders: orders.filter(o => o.status === 'approved').length,
+            rejectedOrders: orders.filter(o => o.status === 'rejected').length,
+            totalRevenue: orders.filter(o => o.status === 'approved').reduce((sum, o) => sum + (o.price || 0), 0),
+            pendingTopups: topups.filter(t => t.status === 'pending').length
+        };
+        
+        // Update badges
+        const usersCount = document.getElementById('users-count');
+        const pendingOrders = document.getElementById('pending-orders');
+        const pendingTopups = document.getElementById('pending-topups');
+        
+        if (usersCount) usersCount.textContent = AdminState.stats.totalUsers;
+        if (pendingOrders) pendingOrders.textContent = AdminState.stats.pendingOrders;
+        if (pendingTopups) pendingTopups.textContent = AdminState.stats.pendingTopups;
     }
 
     // ============================================
@@ -1521,214 +723,1372 @@ class MafiaGamingApp {
     // ============================================
 
     setupEventListeners() {
+        // Menu toggle
+        document.getElementById('menu-toggle')?.addEventListener('click', () => {
+            document.getElementById('admin-sidebar')?.classList.toggle('active');
+        });
+        
         // Navigation
-        document.querySelectorAll('.nav-tab').forEach(tab => {
-            tab.addEventListener('click', () => {
-                this.switchTab(tab.dataset.tab);
-                TelegramHelper.haptic('selection');
+        document.querySelectorAll('.nav-link').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const page = link.dataset.page;
+                if (page) this.navigateTo(page);
             });
         });
         
-        // Topup button
-        document.getElementById('topup-btn')?.addEventListener('click', () => {
-            this.openTopupModal();
+        document.querySelectorAll('.view-all').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const page = link.dataset.page;
+                if (page) this.navigateTo(page);
+            });
         });
         
-        // Back button
-        document.getElementById('back-to-home')?.addEventListener('click', () => {
-            this.closeCategory();
+        // Back to shop
+        document.getElementById('back-to-shop')?.addEventListener('click', () => {
+            window.location.href = '/';
         });
         
-        // Purchase modal
-        document.getElementById('close-purchase-modal')?.addEventListener('click', () => {
-            Modal.close('purchase-modal');
-        });
-        document.getElementById('confirm-purchase')?.addEventListener('click', () => {
-            this.confirmPurchase();
-        });
-        
-        // Topup modal
-        document.getElementById('close-topup-modal')?.addEventListener('click', () => {
-            Modal.close('topup-modal');
-            this.resetTopupModal();
-        });
-        document.getElementById('submit-topup')?.addEventListener('click', () => {
-            this.submitTopupRequest();
+        // Quick actions
+        document.querySelectorAll('.action-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.handleQuickAction(btn.dataset.action);
+            });
         });
         
-        // Copy address
-        document.getElementById('copy-address')?.addEventListener('click', () => {
-            const address = document.getElementById('selected-payment-address')?.textContent;
-            if (address) {
-                navigator.clipboard.writeText(address);
-                Toast.success('Copied!', 'Address copied to clipboard');
-            }
+        // Modal close
+        document.querySelectorAll('.modal-close').forEach(btn => {
+            btn.addEventListener('click', () => closeAllModals());
         });
         
-        // File upload
-        this.setupFileUpload();
+        document.querySelectorAll('.modal-overlay').forEach(overlay => {
+            overlay.addEventListener('click', () => closeAllModals());
+        });
         
-        // Profile menu
-        document.getElementById('menu-topup')?.addEventListener('click', () => this.openTopupModal());
-        document.getElementById('menu-orders')?.addEventListener('click', () => this.switchTab('orders'));
-        document.getElementById('menu-history')?.addEventListener('click', () => this.switchTab('history'));
-        document.getElementById('menu-support')?.addEventListener('click', () => {
-            TelegramHelper.openLink('https://t.me/OPPER101');
+        // Forms
+        this.setupForms();
+        this.setupFileUploads();
+        this.setupAddButtons();
+        this.setupBannerTabs();
+        this.setupOrderActions();
+        this.setupTopupActions();
+        this.setupUserActions();
+    }
+
+    setupForms() {
+        document.getElementById('category-form')?.addEventListener('submit', (e) => this.saveCategory(e));
+        document.getElementById('product-form')?.addEventListener('submit', (e) => this.saveProduct(e));
+        document.getElementById('payment-form')?.addEventListener('submit', (e) => this.savePayment(e));
+        document.getElementById('banner-form')?.addEventListener('submit', (e) => this.saveBanner(e));
+        document.getElementById('input-table-form')?.addEventListener('submit', (e) => this.saveInputTable(e));
+        document.getElementById('announcement-form')?.addEventListener('submit', (e) => this.saveAnnouncement(e));
+        document.getElementById('broadcast-form')?.addEventListener('submit', (e) => this.sendBroadcast(e));
+        document.getElementById('settings-form')?.addEventListener('submit', (e) => this.saveSettings(e));
+        
+        document.getElementById('product-has-discount')?.addEventListener('change', (e) => {
+            document.getElementById('discount-fields')?.classList.toggle('hidden', !e.target.checked);
+        });
+        
+        ['product-price', 'product-discount'].forEach(id => {
+            document.getElementById(id)?.addEventListener('input', () => this.calculateDiscountedPrice());
         });
     }
 
-    setupFileUpload() {
-        const input = document.getElementById('payment-screenshot');
-        const preview = document.getElementById('file-preview');
-        const previewImg = document.getElementById('preview-image');
-        const content = document.querySelector('#file-upload .file-upload-content');
-        const removeBtn = document.getElementById('remove-file');
+    setupFileUploads() {
+        const uploads = [
+            { input: 'category-icon', preview: 'category-icon-preview', img: 'category-icon-img', content: '#category-icon-upload .file-upload-content' },
+            { input: 'product-icon', preview: 'product-icon-preview', img: 'product-icon-img', content: '#product-icon-upload .file-upload-content' },
+            { input: 'payment-icon', preview: 'payment-icon-preview', img: 'payment-icon-img', content: '#payment-icon-upload .file-upload-content' },
+            { input: 'banner-image', preview: 'banner-preview', img: 'banner-preview-img', content: '#banner-file-upload .file-upload-content' },
+            { input: 'site-logo', preview: 'logo-preview', img: 'logo-preview-img', content: '#logo-upload .file-upload-content' }
+        ];
         
-        input?.addEventListener('change', async (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-            
-            const base64 = await fileToBase64(file);
-            if (previewImg) previewImg.src = base64;
-            if (preview) preview.classList.remove('hidden');
-            if (content) content.classList.add('hidden');
-            AppState.topupScreenshot = base64;
+        uploads.forEach(({ input, preview, img, content }) => {
+            document.getElementById(input)?.addEventListener('change', async (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const base64 = await fileToBase64(file);
+                    const imgEl = document.getElementById(img);
+                    if (imgEl) imgEl.src = base64;
+                    document.getElementById(preview)?.classList.remove('hidden');
+                    document.querySelector(content)?.classList.add('hidden');
+                }
+            });
         });
         
-        removeBtn?.addEventListener('click', (e) => {
-            e.preventDefault();
-            if (input) input.value = '';
-            if (preview) preview.classList.add('hidden');
-            if (content) content.classList.remove('hidden');
-            AppState.topupScreenshot = null;
+        document.querySelectorAll('.remove-file').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const container = btn.closest('.file-upload');
+                if (container) {
+                    const input = container.querySelector('input[type="file"]');
+                    if (input) input.value = '';
+                    container.querySelector('.file-preview')?.classList.add('hidden');
+                    container.querySelector('.file-upload-content')?.classList.remove('hidden');
+                }
+            });
         });
     }
 
-    switchTab(tabName) {
-        // Update nav
-        document.querySelectorAll('.nav-tab').forEach(t => {
-            t.classList.toggle('active', t.dataset.tab === tabName);
+    setupAddButtons() {
+        document.getElementById('add-category-btn')?.addEventListener('click', () => this.openCategoryModal());
+        document.getElementById('add-product-btn')?.addEventListener('click', () => this.openProductModal());
+        document.getElementById('add-payment-btn')?.addEventListener('click', () => this.openPaymentModal());
+        document.getElementById('add-type1-banner')?.addEventListener('click', () => this.openBannerModal('type1'));
+        document.getElementById('add-type2-banner')?.addEventListener('click', () => this.openBannerModal('type2'));
+        document.getElementById('add-input-table-btn')?.addEventListener('click', () => this.openInputTableModal());
+    }
+
+    setupBannerTabs() {
+        document.querySelectorAll('.banner-tabs .tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.banner-tabs .tab-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                
+                const tab = btn.dataset.tab;
+                document.getElementById('type1-section')?.classList.toggle('hidden', tab !== 'type1');
+                document.getElementById('type2-section')?.classList.toggle('hidden', tab !== 'type2');
+            });
+        });
+    }
+
+    setupOrderActions() {
+        document.getElementById('approve-order-btn')?.addEventListener('click', () => this.approveOrder());
+        document.getElementById('reject-order-btn')?.addEventListener('click', () => this.rejectOrder());
+        document.getElementById('close-order-modal')?.addEventListener('click', () => closeAdminModal('order-details-modal'));
+    }
+
+    setupTopupActions() {
+        document.getElementById('approve-topup-btn')?.addEventListener('click', () => this.approveTopup());
+        document.getElementById('reject-topup-btn')?.addEventListener('click', () => this.rejectTopup());
+        document.getElementById('close-topup-request-modal')?.addEventListener('click', () => closeAdminModal('topup-request-modal'));
+    }
+
+    setupUserActions() {
+        document.getElementById('add-balance-btn')?.addEventListener('click', () => this.adjustBalance('add'));
+        document.getElementById('deduct-balance-btn')?.addEventListener('click', () => this.adjustBalance('deduct'));
+        document.getElementById('ban-user-btn')?.addEventListener('click', () => this.banCurrentUser());
+        document.getElementById('close-user-modal')?.addEventListener('click', () => closeAdminModal('user-details-modal'));
+    }
+
+    // ============================================
+    // Navigation
+    // ============================================
+
+    navigateTo(page) {
+        console.log('📍 Navigate to:', page);
+        
+        document.querySelectorAll('.nav-link').forEach(link => {
+            link.classList.toggle('active', link.dataset.page === page);
         });
         
-        // Update content
-        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-        document.getElementById(`${tabName}-tab`)?.classList.add('active');
+        document.querySelectorAll('.admin-page').forEach(p => {
+            p.classList.toggle('active', p.id === `page-${page}`);
+        });
         
-        // Hide category page
-        document.getElementById('category-page')?.classList.add('hidden');
+        document.getElementById('admin-sidebar')?.classList.remove('active');
+        AdminState.currentPage = page;
         
-        // Load content
-        switch (tabName) {
-            case 'home': this.loadHomeContent(); break;
-            case 'orders': this.loadOrders(); break;
-            case 'history': this.loadHistory(); break;
-            case 'profile': this.loadProfile(); break;
-            case 'admin': this.openAdminPanel(); break;
+        this.loadPageContent(page);
+    }
+
+    loadPageContent(page) {
+        const loaders = {
+            'dashboard': () => this.loadDashboard(),
+            'users': () => this.loadUsers(),
+            'orders': () => this.loadOrders(),
+            'topup-requests': () => this.loadTopupRequests(),
+            'banners': () => this.loadBanners(),
+            'categories': () => this.loadCategories(),
+            'products': () => this.loadProducts(),
+            'input-tables': () => this.loadInputTables(),
+            'payments': () => this.loadPayments(),
+            'announcements': () => this.loadAnnouncements(),
+            'broadcast': () => this.loadBroadcast(),
+            'banned-users': () => this.loadBannedUsers(),
+            'settings': () => this.loadSettingsPage()
+        };
+        
+        if (loaders[page]) loaders[page]();
+    }
+
+    handleQuickAction(action) {
+        const actions = {
+            'add-category': () => { this.navigateTo('categories'); setTimeout(() => this.openCategoryModal(), 100); },
+            'add-product': () => { this.navigateTo('products'); setTimeout(() => this.openProductModal(), 100); },
+            'add-banner': () => this.navigateTo('banners'),
+            'broadcast': () => this.navigateTo('broadcast')
+        };
+        
+        if (actions[action]) actions[action]();
+    }
+
+    // ============================================
+    // Dashboard
+    // ============================================
+
+    loadDashboard() {
+        document.getElementById('total-users').textContent = AdminState.stats.totalUsers;
+        document.getElementById('total-orders').textContent = AdminState.stats.totalOrders;
+        document.getElementById('approved-orders').textContent = AdminState.stats.approvedOrders;
+        document.getElementById('pending-orders-count').textContent = AdminState.stats.pendingOrders;
+        document.getElementById('rejected-orders').textContent = AdminState.stats.rejectedOrders;
+        document.getElementById('total-revenue').textContent = formatCurrency(AdminState.stats.totalRevenue);
+        
+        // Recent orders
+        const recentOrders = [...AdminState.orders]
+            .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+            .slice(0, 5);
+        
+        const ordersEl = document.getElementById('recent-orders');
+        if (ordersEl) {
+            ordersEl.innerHTML = recentOrders.length ? recentOrders.map(o => `
+                <div class="recent-item">
+                    <div class="recent-item-icon"><i class="fas fa-shopping-cart"></i></div>
+                    <div class="recent-item-info">
+                        <span class="recent-item-title">${o.productName || 'Product'}</span>
+                        <span class="recent-item-subtitle">${o.userName || 'User'} • ${formatDate(o.createdAt, 'relative')}</span>
+                    </div>
+                    <span class="recent-item-status ${o.status}">${o.status}</span>
+                </div>
+            `).join('') : '<p class="text-muted text-center">No recent orders</p>';
         }
         
-        AppState.currentTab = tabName;
+        // Recent topups
+        const recentTopups = [...AdminState.topupRequests]
+            .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+            .slice(0, 5);
+        
+        const topupsEl = document.getElementById('recent-topups');
+        if (topupsEl) {
+            topupsEl.innerHTML = recentTopups.length ? recentTopups.map(t => `
+                <div class="recent-item">
+                    <div class="recent-item-icon"><i class="fas fa-money-bill-wave"></i></div>
+                    <div class="recent-item-info">
+                        <span class="recent-item-title">${formatCurrency(t.amount)}</span>
+                        <span class="recent-item-subtitle">${t.userName || 'User'} • ${formatDate(t.createdAt, 'relative')}</span>
+                    </div>
+                    <span class="recent-item-status ${t.status}">${t.status}</span>
+                </div>
+            `).join('') : '<p class="text-muted text-center">No recent topups</p>';
+        }
     }
 
-    openAdminPanel() {
-        if (!AppState.isAdmin) {
-            Toast.error('Access Denied', 'You are not authorized');
-            this.switchTab('home');
+    // ============================================
+    // Categories
+    // ============================================
+
+    loadCategories() {
+        const container = document.getElementById('admin-categories');
+        if (!container) return;
+        
+        if (AdminState.categories.length === 0) {
+            container.innerHTML = '<div class="empty-state" style="grid-column:1/-1;"><i class="fas fa-th-large"></i><p>No categories. Click "Add Category" to create one.</p></div>';
             return;
         }
-        window.location.href = '/admin.html';
+        
+        container.innerHTML = AdminState.categories.map(cat => {
+            const productCount = AdminState.products.filter(p => p.categoryId === cat.id).length;
+            return `
+                <div class="admin-category-card" data-id="${cat.id}">
+                    <div class="admin-category-icon">
+                        ${cat.icon ? `<img src="${cat.icon}" alt="${cat.name}">` : '<i class="fas fa-gamepad" style="font-size:32px;color:var(--primary);"></i>'}
+                        ${cat.flag ? `<span class="flag">${cat.flag}</span>` : ''}
+                        ${cat.hasDiscount ? '<span class="discount-badge">SALE</span>' : ''}
+                    </div>
+                    <div class="admin-category-info">
+                        <h4>${cat.name}</h4>
+                        <span class="stats">${productCount} products</span>
+                    </div>
+                    <div class="admin-category-actions">
+                        <button class="btn-view" onclick="adminPanel.editCategory('${cat.id}')"><i class="fas fa-edit"></i></button>
+                        <button class="btn-delete" onclick="adminPanel.deleteCategory('${cat.id}')"><i class="fas fa-trash"></i></button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    openCategoryModal(categoryId = null) {
+        const form = document.getElementById('category-form');
+        form?.reset();
+        document.getElementById('category-id').value = categoryId || '';
+        document.getElementById('category-icon-preview')?.classList.add('hidden');
+        document.querySelector('#category-icon-upload .file-upload-content')?.classList.remove('hidden');
+        document.getElementById('category-modal-title').textContent = categoryId ? 'Edit Category' : 'Add Category';
+        
+        if (categoryId) {
+            const cat = AdminState.categories.find(c => c.id === categoryId);
+            if (cat) {
+                document.getElementById('category-name').value = cat.name || '';
+                document.getElementById('category-flag').value = cat.flag || '';
+                document.getElementById('category-has-discount').checked = cat.hasDiscount || false;
+                if (cat.icon) {
+                    document.getElementById('category-icon-img').src = cat.icon;
+                    document.getElementById('category-icon-preview')?.classList.remove('hidden');
+                    document.querySelector('#category-icon-upload .file-upload-content')?.classList.add('hidden');
+                }
+            }
+        }
+        
+        openAdminModal('category-modal');
+    }
+
+    editCategory(id) { this.openCategoryModal(id); }
+
+    async saveCategory(e) {
+        e.preventDefault();
+        showAdminLoading('Saving...');
+        
+        const id = document.getElementById('category-id').value;
+        const name = document.getElementById('category-name').value.trim();
+        const flag = document.getElementById('category-flag').value;
+        const hasDiscount = document.getElementById('category-has-discount').checked;
+        const iconInput = document.getElementById('category-icon');
+        const previewImg = document.getElementById('category-icon-img');
+        
+        if (!name) {
+            hideAdminLoading();
+            showAdminToast('warning', 'Required', 'Enter category name');
+            return;
+        }
+        
+        let icon = previewImg?.src || '';
+        if (iconInput?.files[0]) {
+            icon = await fileToBase64(iconInput.files[0]);
+        }
+        
+        const data = {
+            id: id || 'cat_' + Date.now(),
+            name, flag, hasDiscount, icon,
+            updatedAt: new Date().toISOString()
+        };
+        
+        if (id) {
+            const idx = AdminState.categories.findIndex(c => c.id === id);
+            if (idx !== -1) AdminState.categories[idx] = { ...AdminState.categories[idx], ...data };
+        } else {
+            data.createdAt = new Date().toISOString();
+            AdminState.categories.push(data);
+        }
+        
+        await this.saveData('categories');
+        
+        hideAdminLoading();
+        closeAdminModal('category-modal');
+        showAdminToast('success', 'Saved', 'Category saved');
+        this.loadCategories();
+    }
+
+    async deleteCategory(id) {
+        const products = AdminState.products.filter(p => p.categoryId === id);
+        if (products.length > 0) {
+            showAdminToast('warning', 'Cannot Delete', `Has ${products.length} products`);
+            return;
+        }
+        
+        if (!confirm('Delete this category?')) return;
+        
+        showAdminLoading('Deleting...');
+        AdminState.categories = AdminState.categories.filter(c => c.id !== id);
+        await this.saveData('categories');
+        hideAdminLoading();
+        
+        showAdminToast('success', 'Deleted', 'Category deleted');
+        this.loadCategories();
     }
 
     // ============================================
-    // Real-time Sync
+    // Products
     // ============================================
 
-    startRealTimeSync() {
-        // Sync every 30 seconds
-        this.syncInterval = setInterval(() => this.syncData(), 30000);
+    loadProducts() {
+        const container = document.getElementById('admin-products');
+        const filterSelect = document.getElementById('filter-product-category');
         
-        // Sync on visibility change
-        document.addEventListener('visibilitychange', () => {
-            if (document.visibilityState === 'visible') {
-                this.syncData();
+        if (filterSelect) {
+            filterSelect.innerHTML = '<option value="">All Categories</option>' +
+                AdminState.categories.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+            
+            filterSelect.onchange = () => {
+                const catId = filterSelect.value;
+                document.querySelectorAll('.admin-product-card').forEach(card => {
+                    card.style.display = (!catId || card.dataset.categoryId === catId) ? '' : 'none';
+                });
+            };
+        }
+        
+        if (!container) return;
+        
+        if (AdminState.products.length === 0) {
+            container.innerHTML = '<div class="empty-state" style="grid-column:1/-1;"><i class="fas fa-box"></i><p>No products. Click "Add Product" to create one.</p></div>';
+            return;
+        }
+        
+        container.innerHTML = AdminState.products.map(product => {
+            const category = AdminState.categories.find(c => c.id === product.categoryId);
+            const discountedPrice = product.hasDiscount ? product.price - (product.price * product.discount / 100) : product.price;
+            
+            return `
+                <div class="admin-product-card" data-id="${product.id}" data-category-id="${product.categoryId}">
+                    <div class="admin-product-image">
+                        ${product.icon ? `<img src="${product.icon}">` : '<i class="fas fa-box" style="font-size:40px;color:var(--primary);"></i>'}
+                        ${product.hasDiscount ? `<span class="badge" style="background:var(--danger);color:white;position:absolute;top:5px;right:5px;">-${product.discount}%</span>` : ''}
+                    </div>
+                    <div class="admin-product-info">
+                        <div class="category-tag">${category?.name || 'Unknown'}</div>
+                        <h4>${product.name}</h4>
+                        <div class="price-row">
+                            <span class="price-current">${formatCurrency(discountedPrice, product.currency)}</span>
+                            ${product.hasDiscount ? `<span class="price-original" style="text-decoration:line-through;opacity:0.6;font-size:12px;margin-left:5px;">${formatCurrency(product.price, product.currency)}</span>` : ''}
+                        </div>
+                        <div style="margin-top:10px;">
+                            <button class="btn-view" onclick="adminPanel.editProduct('${product.id}')"><i class="fas fa-edit"></i></button>
+                            <button class="btn-delete" onclick="adminPanel.deleteProduct('${product.id}')"><i class="fas fa-trash"></i></button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    openProductModal(productId = null) {
+        const form = document.getElementById('product-form');
+        form?.reset();
+        document.getElementById('product-id').value = productId || '';
+        document.getElementById('product-icon-preview')?.classList.add('hidden');
+        document.getElementById('discount-fields')?.classList.add('hidden');
+        document.getElementById('product-modal-title').textContent = productId ? 'Edit Product' : 'Add Product';
+        
+        const categorySelect = document.getElementById('product-category');
+        if (categorySelect) {
+            categorySelect.innerHTML = '<option value="">Choose Category</option>' +
+                AdminState.categories.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+        }
+        
+        if (productId) {
+            const product = AdminState.products.find(p => p.id === productId);
+            if (product) {
+                document.getElementById('product-category').value = product.categoryId || '';
+                document.getElementById('product-name').value = product.name || '';
+                document.getElementById('product-price').value = product.price || '';
+                document.getElementById('product-currency').value = product.currency || 'MMK';
+                document.getElementById('product-delivery').value = product.delivery || 'instant';
+                document.getElementById('product-has-discount').checked = product.hasDiscount || false;
+                document.getElementById('product-active').checked = product.active !== false;
+                
+                if (product.hasDiscount) {
+                    document.getElementById('discount-fields')?.classList.remove('hidden');
+                    document.getElementById('product-discount').value = product.discount || 0;
+                    this.calculateDiscountedPrice();
+                }
+                
+                if (product.icon) {
+                    document.getElementById('product-icon-img').src = product.icon;
+                    document.getElementById('product-icon-preview')?.classList.remove('hidden');
+                }
             }
+        }
+        
+        openAdminModal('product-modal');
+    }
+
+    editProduct(id) { this.openProductModal(id); }
+
+    calculateDiscountedPrice() {
+        const price = parseFloat(document.getElementById('product-price')?.value) || 0;
+        const discount = parseFloat(document.getElementById('product-discount')?.value) || 0;
+        const el = document.getElementById('product-discounted-price');
+        if (el) el.value = Math.round(price - (price * discount / 100));
+    }
+
+    async saveProduct(e) {
+        e.preventDefault();
+        showAdminLoading('Saving...');
+        
+        const id = document.getElementById('product-id').value;
+        const categoryId = document.getElementById('product-category').value;
+        const name = document.getElementById('product-name').value.trim();
+        const price = parseFloat(document.getElementById('product-price').value) || 0;
+        const currency = document.getElementById('product-currency').value;
+        const delivery = document.getElementById('product-delivery').value;
+        const hasDiscount = document.getElementById('product-has-discount').checked;
+        const discount = hasDiscount ? (parseFloat(document.getElementById('product-discount').value) || 0) : 0;
+        const active = document.getElementById('product-active').checked;
+        const iconInput = document.getElementById('product-icon');
+        const previewImg = document.getElementById('product-icon-img');
+        
+        if (!categoryId || !name || !price) {
+            hideAdminLoading();
+            showAdminToast('warning', 'Required', 'Fill all required fields');
+            return;
+        }
+        
+        let icon = previewImg?.src || '';
+        if (iconInput?.files[0]) {
+            icon = await fileToBase64(iconInput.files[0]);
+        }
+        
+        const data = {
+            id: id || 'prod_' + Date.now(),
+            categoryId, name, price, currency, delivery, hasDiscount, discount, active, icon,
+            updatedAt: new Date().toISOString()
+        };
+        
+        if (id) {
+            const idx = AdminState.products.findIndex(p => p.id === id);
+            if (idx !== -1) AdminState.products[idx] = { ...AdminState.products[idx], ...data };
+        } else {
+            data.createdAt = new Date().toISOString();
+            AdminState.products.push(data);
+        }
+        
+        await this.saveData('products');
+        
+        hideAdminLoading();
+        closeAdminModal('product-modal');
+        showAdminToast('success', 'Saved', 'Product saved');
+        this.loadProducts();
+    }
+
+    async deleteProduct(id) {
+        if (!confirm('Delete this product?')) return;
+        
+        showAdminLoading('Deleting...');
+        AdminState.products = AdminState.products.filter(p => p.id !== id);
+        await this.saveData('products');
+        hideAdminLoading();
+        
+        showAdminToast('success', 'Deleted', 'Product deleted');
+        this.loadProducts();
+    }
+
+    // ============================================
+    // Payments
+    // ============================================
+
+    loadPayments() {
+        const container = document.getElementById('admin-payments');
+        if (!container) return;
+        
+        if (AdminState.payments.length === 0) {
+            container.innerHTML = '<div class="empty-state"><i class="fas fa-credit-card"></i><p>No payment methods</p></div>';
+            return;
+        }
+        
+        container.innerHTML = AdminState.payments.map(p => `
+            <div class="payment-card" data-id="${p.id}">
+                <div class="payment-card-icon">
+                    ${p.icon ? `<img src="${p.icon}">` : '<i class="fas fa-credit-card" style="font-size:32px;color:var(--primary);"></i>'}
+                </div>
+                <div class="payment-card-info">
+                    <h4>${p.name}</h4>
+                    <div>${p.address}</div>
+                    <div>${p.holder}</div>
+                </div>
+                <span class="payment-card-status ${p.active ? 'active' : 'inactive'}">${p.active ? 'Active' : 'Inactive'}</span>
+                <div class="payment-card-actions">
+                    <button class="btn-view" onclick="adminPanel.editPayment('${p.id}')"><i class="fas fa-edit"></i></button>
+                    <button class="btn-delete" onclick="adminPanel.deletePayment('${p.id}')"><i class="fas fa-trash"></i></button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    openPaymentModal(paymentId = null) {
+        const form = document.getElementById('payment-form');
+        form?.reset();
+        document.getElementById('payment-id').value = paymentId || '';
+        document.getElementById('payment-icon-preview')?.classList.add('hidden');
+        document.querySelector('#payment-icon-upload .file-upload-content')?.classList.remove('hidden');
+        document.getElementById('payment-modal-title').textContent = paymentId ? 'Edit Payment' : 'Add Payment';
+        
+        if (paymentId) {
+            const p = AdminState.payments.find(x => x.id === paymentId);
+            if (p) {
+                document.getElementById('payment-name').value = p.name || '';
+                document.getElementById('payment-address').value = p.address || '';
+                document.getElementById('payment-holder').value = p.holder || '';
+                document.getElementById('payment-note').value = p.note || '';
+                document.getElementById('payment-active').checked = p.active !== false;
+                if (p.icon) {
+                    document.getElementById('payment-icon-img').src = p.icon;
+                    document.getElementById('payment-icon-preview')?.classList.remove('hidden');
+                    document.querySelector('#payment-icon-upload .file-upload-content')?.classList.add('hidden');
+                }
+            }
+        }
+        
+        openAdminModal('payment-modal');
+    }
+
+    editPayment(id) { this.openPaymentModal(id); }
+
+    async savePayment(e) {
+        e.preventDefault();
+        showAdminLoading('Saving...');
+        
+        const id = document.getElementById('payment-id').value;
+        const name = document.getElementById('payment-name').value.trim();
+        const address = document.getElementById('payment-address').value.trim();
+        const holder = document.getElementById('payment-holder').value.trim();
+        const note = document.getElementById('payment-note').value.trim();
+        const active = document.getElementById('payment-active').checked;
+        const iconInput = document.getElementById('payment-icon');
+        const previewImg = document.getElementById('payment-icon-img');
+        
+        if (!name || !address || !holder) {
+            hideAdminLoading();
+            showAdminToast('warning', 'Required', 'Fill all required fields');
+            return;
+        }
+        
+        let icon = previewImg?.src || '';
+        if (iconInput?.files[0]) {
+            icon = await fileToBase64(iconInput.files[0]);
+        }
+        
+        const data = {
+            id: id || 'pay_' + Date.now(),
+            name, address, holder, note, active, icon,
+            updatedAt: new Date().toISOString()
+        };
+        
+        if (id) {
+            const idx = AdminState.payments.findIndex(p => p.id === id);
+            if (idx !== -1) AdminState.payments[idx] = { ...AdminState.payments[idx], ...data };
+        } else {
+            data.createdAt = new Date().toISOString();
+            AdminState.payments.push(data);
+        }
+        
+        await this.saveData('payments');
+        
+        hideAdminLoading();
+        closeAdminModal('payment-modal');
+        showAdminToast('success', 'Saved', 'Payment saved');
+        this.loadPayments();
+    }
+
+    async deletePayment(id) {
+        if (!confirm('Delete this payment method?')) return;
+        
+        showAdminLoading('Deleting...');
+        AdminState.payments = AdminState.payments.filter(p => p.id !== id);
+        await this.saveData('payments');
+        hideAdminLoading();
+        
+        showAdminToast('success', 'Deleted', 'Payment deleted');
+        this.loadPayments();
+    }
+
+    // ============================================
+    // Orders
+    // ============================================
+
+    loadOrders() {
+        const container = document.getElementById('admin-orders-list');
+        if (!container) return;
+        
+        const orders = [...AdminState.orders].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        
+        if (orders.length === 0) {
+            container.innerHTML = '<div class="empty-state"><i class="fas fa-box-open"></i><p>No orders</p></div>';
+            return;
+        }
+        
+        container.innerHTML = orders.map(o => `
+            <div class="admin-order-card" data-id="${o.id}" data-status="${o.status}" onclick="adminPanel.viewOrder('${o.id}')">
+                <div class="admin-order-header">
+                    <span class="order-id">${o.id}</span>
+                    <span class="order-status ${o.status}">${o.status}</span>
+                </div>
+                <div class="admin-order-body">
+                    <div class="admin-order-user">
+                        <img src="${AdminTG.avatarUrl(o.userId)}" alt="">
+                        <div class="info">
+                            <span class="name">${o.userName || 'User'}</span>
+                            <span class="id">ID: ${o.userId}</span>
+                        </div>
+                    </div>
+                    <div class="admin-order-product">
+                        <span class="name">${o.productName}</span>
+                        <span class="price">${formatCurrency(o.price, o.currency)}</span>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+        
+        // Filter buttons
+        document.querySelectorAll('#page-orders .filter-btn').forEach(btn => {
+            btn.onclick = () => {
+                document.querySelectorAll('#page-orders .filter-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                
+                const filter = btn.dataset.filter;
+                document.querySelectorAll('.admin-order-card').forEach(card => {
+                    card.style.display = (filter === 'all' || card.dataset.status === filter) ? '' : 'none';
+                });
+            };
         });
     }
 
-    async syncData() {
-        try {
-            // Sync balance
-            const users = await JSONBinDB.read('users') || [];
-            const userData = users.find(u => String(u.id) === String(AppState.user.id));
+    viewOrder(orderId) {
+        const order = AdminState.orders.find(o => o.id === orderId);
+        if (!order) return;
+        
+        AdminState.selectedOrder = order;
+        
+        document.getElementById('order-id').textContent = order.id;
+        document.getElementById('order-status').textContent = order.status;
+        document.getElementById('order-status').className = `value status ${order.status}`;
+        document.getElementById('order-date').textContent = formatDate(order.createdAt, 'datetime');
+        document.getElementById('order-user-avatar').src = AdminTG.avatarUrl(order.userId);
+        document.getElementById('order-user-name').textContent = order.userName || 'User';
+        document.getElementById('order-user-id').textContent = `ID: ${order.userId}`;
+        document.getElementById('order-product-icon').src = order.productIcon || '';
+        document.getElementById('order-product-name').textContent = order.productName;
+        document.getElementById('order-product-amount').textContent = order.amount || '';
+        document.getElementById('order-product-price').textContent = formatCurrency(order.price, order.currency);
+        
+        // Input values
+        const inputInfo = document.getElementById('order-input-info');
+        const inputValues = document.getElementById('order-input-values');
+        
+        if (order.inputValues && Object.keys(order.inputValues).length > 0) {
+            inputInfo.style.display = 'block';
+            inputValues.innerHTML = Object.entries(order.inputValues).map(([key, value]) => {
+                const table = AdminState.inputTables.find(t => t.id === key);
+                return `<div class="input-value-item"><span class="label">${table?.name || key}:</span><span class="value">${value}</span></div>`;
+            }).join('');
+        } else {
+            inputInfo.style.display = 'none';
+        }
+        
+        document.getElementById('order-actions').style.display = order.status === 'pending' ? 'flex' : 'none';
+        
+        openAdminModal('order-details-modal');
+    }
+
+    async approveOrder() {
+        if (!AdminState.selectedOrder) return;
+        
+        showAdminLoading('Approving...');
+        
+        const order = AdminState.orders.find(o => o.id === AdminState.selectedOrder.id);
+        if (order) {
+            order.status = 'approved';
+            order.updatedAt = new Date().toISOString();
             
-            if (userData) {
-                const oldBalance = AppState.balance;
-                AppState.balance = userData.balance || 0;
+            // Update user stats
+            const user = AdminState.users.find(u => String(u.id) === String(order.userId));
+            if (user) {
+                user.completedOrders = (user.completedOrders || 0) + 1;
+                await this.saveData('users');
+            }
+            
+            await this.saveData('orders');
+            this.calculateStats();
+        }
+        
+        hideAdminLoading();
+        closeAdminModal('order-details-modal');
+        showAdminToast('success', 'Approved', 'Order approved');
+        this.loadOrders();
+        this.loadDashboard();
+    }
+
+    async rejectOrder() {
+        if (!AdminState.selectedOrder) return;
+        if (!confirm('Reject and refund?')) return;
+        
+        showAdminLoading('Rejecting...');
+        
+        const order = AdminState.orders.find(o => o.id === AdminState.selectedOrder.id);
+        if (order) {
+            order.status = 'rejected';
+            order.updatedAt = new Date().toISOString();
+            
+            // Refund
+            const user = AdminState.users.find(u => String(u.id) === String(order.userId));
+            if (user) {
+                user.balance = (user.balance || 0) + (order.price || 0);
+                user.rejectedOrders = (user.rejectedOrders || 0) + 1;
+                await this.saveData('users');
+            }
+            
+            await this.saveData('orders');
+            this.calculateStats();
+        }
+        
+        hideAdminLoading();
+        closeAdminModal('order-details-modal');
+        showAdminToast('success', 'Rejected', 'Order rejected, refunded');
+        this.loadOrders();
+        this.loadDashboard();
+    }
+
+    // ============================================
+    // Topup Requests
+    // ============================================
+
+    loadTopupRequests() {
+        const container = document.getElementById('topup-requests-list');
+        if (!container) return;
+        
+        const topups = [...AdminState.topupRequests].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        
+        if (topups.length === 0) {
+            container.innerHTML = '<div class="empty-state"><i class="fas fa-money-bill-wave"></i><p>No topup requests</p></div>';
+            return;
+        }
+        
+        container.innerHTML = topups.map(t => `
+            <div class="topup-request-card" data-id="${t.id}" data-status="${t.status}" onclick="adminPanel.viewTopup('${t.id}')">
+                <div class="topup-request-header">
+                    <span class="order-id">${t.id}</span>
+                    <span class="order-status ${t.status}">${t.status}</span>
+                </div>
+                <div class="topup-request-body">
+                    <div class="topup-user-info">
+                        <img src="${AdminTG.avatarUrl(t.userId)}" alt="">
+                        <div class="info">
+                            <span class="name">${t.userName || 'User'}</span>
+                            <span class="id">ID: ${t.userId}</span>
+                        </div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="font-size:18px;font-weight:700;color:var(--success);">${formatCurrency(t.amount)}</div>
+                        <div style="font-size:12px;color:var(--text-tertiary);">${formatDate(t.createdAt, 'relative')}</div>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+        
+        // Filter buttons
+        document.querySelectorAll('.topup-filter .filter-btn').forEach(btn => {
+            btn.onclick = () => {
+                document.querySelectorAll('.topup-filter .filter-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
                 
-                if (oldBalance !== AppState.balance) {
-                    this.updateBalanceDisplay();
-                    
-                    if (AppState.balance > oldBalance) {
-                        Toast.success('Balance Updated', `+${Format.currency(AppState.balance - oldBalance)}`);
-                        TelegramHelper.haptic('notification', 'success');
-                    }
-                }
+                const filter = btn.dataset.filter;
+                document.querySelectorAll('.topup-request-card').forEach(card => {
+                    card.style.display = (filter === 'all' || card.dataset.status === filter) ? '' : 'none';
+                });
+            };
+        });
+    }
+
+    viewTopup(topupId) {
+        const topup = AdminState.topupRequests.find(t => t.id === topupId);
+        if (!topup) return;
+        
+        AdminState.selectedTopup = topup;
+        
+        document.getElementById('topup-user-avatar').src = AdminTG.avatarUrl(topup.userId);
+        document.getElementById('topup-user-name').textContent = topup.userName || 'User';
+        document.getElementById('topup-user-id').textContent = `ID: ${topup.userId}`;
+        document.getElementById('topup-amount-value').textContent = formatCurrency(topup.amount);
+        document.getElementById('topup-payment-method').textContent = topup.paymentMethod || '-';
+        document.getElementById('topup-date').textContent = formatDate(topup.createdAt, 'datetime');
+        document.getElementById('topup-status').textContent = topup.status;
+        document.getElementById('topup-status').className = `value status ${topup.status}`;
+        document.getElementById('topup-screenshot').src = topup.screenshot || '';
+        
+        document.getElementById('topup-actions').style.display = topup.status === 'pending' ? 'flex' : 'none';
+        
+        openAdminModal('topup-request-modal');
+    }
+
+    async approveTopup() {
+        if (!AdminState.selectedTopup) return;
+        
+        showAdminLoading('Approving...');
+        
+        const topup = AdminState.topupRequests.find(t => t.id === AdminState.selectedTopup.id);
+        if (topup) {
+            topup.status = 'approved';
+            topup.updatedAt = new Date().toISOString();
+            
+            // Add balance
+            const user = AdminState.users.find(u => String(u.id) === String(topup.userId));
+            if (user) {
+                user.balance = (user.balance || 0) + (topup.amount || 0);
+                user.totalTopup = (user.totalTopup || 0) + (topup.amount || 0);
+                await this.saveData('users');
             }
             
-            // Sync orders
-            const allOrders = await JSONBinDB.read('orders') || [];
-            const userOrders = allOrders.filter(o => String(o.userId) === String(AppState.user.id));
-            
-            userOrders.forEach(newOrder => {
-                const oldOrder = AppState.orders.find(o => o.id === newOrder.id);
-                if (oldOrder && oldOrder.status !== newOrder.status) {
-                    if (newOrder.status === 'approved') {
-                        Toast.success('Order Approved!', `Order ${newOrder.id} approved`);
-                    } else if (newOrder.status === 'rejected') {
-                        Toast.error('Order Rejected', `Order ${newOrder.id} rejected`);
-                    }
-                    TelegramHelper.haptic('notification', newOrder.status === 'approved' ? 'success' : 'error');
-                }
-            });
-            
-            AppState.orders = userOrders;
-            
-            // Sync settings
-            const settings = await JSONBinDB.read('settings');
-            if (settings) {
-                AppState.settings = { ...AppState.settings, ...settings };
-                this.updateHeader();
+            await this.saveData('topupRequests');
+            this.calculateStats();
+        }
+        
+        hideAdminLoading();
+        closeAdminModal('topup-request-modal');
+        showAdminToast('success', 'Approved', 'Topup approved, balance added');
+        this.loadTopupRequests();
+        this.loadDashboard();
+    }
+
+    async rejectTopup() {
+        if (!AdminState.selectedTopup) return;
+        if (!confirm('Reject this topup?')) return;
+        
+        showAdminLoading('Rejecting...');
+        
+        const topup = AdminState.topupRequests.find(t => t.id === AdminState.selectedTopup.id);
+        if (topup) {
+            topup.status = 'rejected';
+            topup.updatedAt = new Date().toISOString();
+            await this.saveData('topupRequests');
+            this.calculateStats();
+        }
+        
+        hideAdminLoading();
+        closeAdminModal('topup-request-modal');
+        showAdminToast('success', 'Rejected', 'Topup rejected');
+        this.loadTopupRequests();
+        this.loadDashboard();
+    }
+
+    // ============================================
+    // Users
+    // ============================================
+
+    loadUsers() {
+        const tbody = document.getElementById('users-tbody');
+        if (!tbody) return;
+        
+        if (AdminState.users.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center">No users</td></tr>';
+            return;
+        }
+        
+        tbody.innerHTML = AdminState.users.map(user => `
+            <tr data-id="${user.id}">
+                <td>
+                    <div class="user-cell">
+                        <img src="${AdminTG.avatarUrl(user.id)}" alt="">
+                        <div class="user-info">
+                            <span class="name">${user.firstName || ''} ${user.lastName || ''}</span>
+                            <span class="username">@${user.username || 'N/A'}</span>
+                        </div>
+                    </div>
+                </td>
+                <td>${user.id}</td>
+                <td>${formatCurrency(user.balance || 0)}</td>
+                <td>${user.totalOrders || 0}</td>
+                <td><span class="status-badge ${user.isPremium ? 'premium' : 'regular'}">${user.isPremium ? '⭐ Premium' : 'Regular'}</span></td>
+                <td>${formatDate(user.joinedAt)}</td>
+                <td>
+                    <button class="btn-view" onclick="adminPanel.viewUser('${user.id}')"><i class="fas fa-eye"></i></button>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    viewUser(userId) {
+        const user = AdminState.users.find(u => String(u.id) === String(userId));
+        if (!user) return;
+        
+        AdminState.selectedUser = user;
+        
+        document.getElementById('modal-user-avatar').src = AdminTG.avatarUrl(user.id);
+        document.getElementById('modal-user-name').textContent = `${user.firstName || ''} ${user.lastName || ''}`;
+        document.getElementById('modal-user-username').textContent = `@${user.username || 'N/A'}`;
+        document.getElementById('modal-premium-badge').style.display = user.isPremium ? 'inline-flex' : 'none';
+        document.getElementById('modal-balance').textContent = formatCurrency(user.balance || 0);
+        
+        const orders = AdminState.orders.filter(o => String(o.userId) === String(userId));
+        const topups = AdminState.topupRequests.filter(t => String(t.userId) === String(userId));
+        
+        document.getElementById('modal-total-orders').textContent = orders.length;
+        document.getElementById('modal-approved').textContent = orders.filter(o => o.status === 'approved').length;
+        document.getElementById('modal-rejected').textContent = orders.filter(o => o.status === 'rejected').length;
+        document.getElementById('modal-total-topup').textContent = formatCurrency(topups.filter(t => t.status === 'approved').reduce((s, t) => s + (t.amount || 0), 0));
+        document.getElementById('modal-joined').textContent = formatDate(user.joinedAt);
+        
+        openAdminModal('user-details-modal');
+    }
+
+    async adjustBalance(operation) {
+        if (!AdminState.selectedUser) return;
+        
+        const amount = parseFloat(document.getElementById('adjust-balance-amount')?.value || 0);
+        if (!amount || amount <= 0) {
+            showAdminToast('warning', 'Invalid', 'Enter valid amount');
+            return;
+        }
+        
+        showAdminLoading('Updating...');
+        
+        const user = AdminState.users.find(u => u.id === AdminState.selectedUser.id);
+        if (user) {
+            if (operation === 'add') {
+                user.balance = (user.balance || 0) + amount;
+            } else {
+                user.balance = Math.max(0, (user.balance || 0) - amount);
             }
             
-        } catch (error) {
-            console.error('Sync error:', error);
+            await this.saveData('users');
+            document.getElementById('modal-balance').textContent = formatCurrency(user.balance);
+            document.getElementById('adjust-balance-amount').value = '';
+        }
+        
+        hideAdminLoading();
+        showAdminToast('success', 'Updated', `Balance ${operation === 'add' ? 'added' : 'deducted'}`);
+    }
+
+    banCurrentUser() {
+        if (AdminState.selectedUser) {
+            this.banUser(AdminState.selectedUser.id);
+            closeAdminModal('user-details-modal');
         }
     }
 
-    stopRealTimeSync() {
-        if (this.syncInterval) {
-            clearInterval(this.syncInterval);
+    async banUser(userId) {
+        if (!confirm('Ban this user?')) return;
+        
+        showAdminLoading('Banning...');
+        
+        const user = AdminState.users.find(u => String(u.id) === String(userId));
+        if (user) {
+            AdminState.bannedUsers.push({
+                id: user.id,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                username: user.username,
+                bannedAt: new Date().toISOString()
+            });
+            await this.saveData('bannedUsers');
         }
+        
+        hideAdminLoading();
+        showAdminToast('success', 'Banned', 'User banned');
+        this.loadUsers();
+    }
+
+    // ============================================
+    // Banners
+    // ============================================
+
+    loadBanners() {
+        const type1 = document.getElementById('type1-banners');
+        if (type1) {
+            type1.innerHTML = AdminState.bannersType1.length ?
+                AdminState.bannersType1.map(b => `
+                    <div class="banner-card">
+                        <img src="${b.image}" alt="Banner">
+                        <div class="banner-card-actions">
+                            <button onclick="adminPanel.deleteBanner('${b.id}', 'type1')"><i class="fas fa-trash"></i></button>
+                        </div>
+                    </div>
+                `).join('') : '<p class="text-muted">No home banners</p>';
+        }
+        
+        const type2 = document.getElementById('type2-banners');
+        if (type2) {
+            type2.innerHTML = AdminState.bannersType2.length ?
+                AdminState.bannersType2.map(b => {
+                    const cat = AdminState.categories.find(c => c.id === b.categoryId);
+                    return `
+                        <div class="banner-list-item">
+                            <img src="${b.image}" style="width:100px;height:60px;object-fit:cover;border-radius:8px;">
+                            <span>${cat?.name || 'Unknown'}</span>
+                            <button onclick="adminPanel.deleteBanner('${b.id}', 'type2')"><i class="fas fa-trash"></i></button>
+                        </div>
+                    `;
+                }).join('') : '<p class="text-muted">No category banners</p>';
+        }
+    }
+
+    openBannerModal(type) {
+        document.getElementById('banner-form')?.reset();
+        document.getElementById('banner-id').value = '';
+        document.getElementById('banner-type').value = type;
+        document.getElementById('banner-preview')?.classList.add('hidden');
+        document.querySelector('#banner-file-upload .file-upload-content')?.classList.remove('hidden');
+        
+        document.getElementById('banner-category-group').style.display = type === 'type2' ? 'block' : 'none';
+        document.getElementById('banner-instructions-group').style.display = type === 'type2' ? 'block' : 'none';
+        
+        if (type === 'type2') {
+            document.getElementById('banner-category').innerHTML = '<option value="">Select Category</option>' +
+                AdminState.categories.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+        }
+        
+        openAdminModal('add-banner-modal');
+    }
+
+    async saveBanner(e) {
+        e.preventDefault();
+        showAdminLoading('Saving...');
+        
+        const type = document.getElementById('banner-type').value;
+        const imageInput = document.getElementById('banner-image');
+        const previewImg = document.getElementById('banner-preview-img');
+        
+        let image = previewImg?.src || '';
+        if (imageInput?.files[0]) {
+            image = await fileToBase64(imageInput.files[0]);
+        }
+        
+        if (!image) {
+            hideAdminLoading();
+            showAdminToast('warning', 'Required', 'Upload banner image');
+            return;
+        }
+        
+        const data = {
+            id: 'banner_' + Date.now(),
+            image,
+            createdAt: new Date().toISOString()
+        };
+        
+        if (type === 'type2') {
+            data.categoryId = document.getElementById('banner-category').value;
+            data.instructions = document.getElementById('banner-instructions').value;
+        }
+        
+        if (type === 'type1') {
+            AdminState.bannersType1.push(data);
+            await this.saveData('bannersType1');
+        } else {
+            AdminState.bannersType2.push(data);
+            await this.saveData('bannersType2');
+        }
+        
+        hideAdminLoading();
+        closeAdminModal('add-banner-modal');
+        showAdminToast('success', 'Saved', 'Banner saved');
+        this.loadBanners();
+    }
+
+    async deleteBanner(id, type) {
+        if (!confirm('Delete banner?')) return;
+        
+        showAdminLoading('Deleting...');
+        
+        if (type === 'type1') {
+            AdminState.bannersType1 = AdminState.bannersType1.filter(b => b.id !== id);
+            await this.saveData('bannersType1');
+        } else {
+            AdminState.bannersType2 = AdminState.bannersType2.filter(b => b.id !== id);
+            await this.saveData('bannersType2');
+        }
+        
+        hideAdminLoading();
+        showAdminToast('success', 'Deleted', 'Banner deleted');
+        this.loadBanners();
+    }
+
+    // ============================================
+    // Input Tables
+    // ============================================
+
+    loadInputTables() {
+        const container = document.getElementById('admin-input-tables');
+        if (!container) return;
+        
+        if (AdminState.inputTables.length === 0) {
+            container.innerHTML = '<div class="empty-state"><i class="fas fa-keyboard"></i><p>No input tables</p></div>';
+            return;
+        }
+        
+        container.innerHTML = AdminState.inputTables.map(t => {
+            const cat = AdminState.categories.find(c => c.id === t.categoryId);
+            return `
+                <div class="input-table-card">
+                    <div class="input-table-info">
+                        <h4>${t.name}</h4>
+                        <span>${cat?.name || 'Unknown'} • ${t.required ? 'Required' : 'Optional'}</span>
+                    </div>
+                    <button onclick="adminPanel.deleteInputTable('${t.id}')"><i class="fas fa-trash"></i></button>
+                </div>
+            `;
+        }).join('');
+    }
+
+    openInputTableModal() {
+        document.getElementById('input-table-form')?.reset();
+        document.getElementById('input-table-id').value = '';
+        
+        document.getElementById('input-table-category').innerHTML = '<option value="">Choose Category</option>' +
+            AdminState.categories.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+        
+        openAdminModal('input-table-modal');
+    }
+
+    async saveInputTable(e) {
+        e.preventDefault();
+        showAdminLoading('Saving...');
+        
+        const categoryId = document.getElementById('input-table-category').value;
+        const name = document.getElementById('input-table-name').value.trim();
+        const placeholder = document.getElementById('input-table-placeholder').value.trim();
+        const required = document.getElementById('input-table-required').checked;
+        
+        if (!categoryId || !name) {
+            hideAdminLoading();
+            showAdminToast('warning', 'Required', 'Fill all fields');
+            return;
+        }
+        
+        AdminState.inputTables.push({
+            id: 'input_' + Date.now(),
+            categoryId, name, placeholder, required,
+            createdAt: new Date().toISOString()
+        });
+        
+        await this.saveData('inputTables');
+        
+        hideAdminLoading();
+        closeAdminModal('input-table-modal');
+        showAdminToast('success', 'Saved', 'Input table saved');
+        this.loadInputTables();
+    }
+
+    async deleteInputTable(id) {
+        if (!confirm('Delete?')) return;
+        
+        showAdminLoading('Deleting...');
+        AdminState.inputTables = AdminState.inputTables.filter(t => t.id !== id);
+        await this.saveData('inputTables');
+        hideAdminLoading();
+        
+        showAdminToast('success', 'Deleted', 'Input table deleted');
+        this.loadInputTables();
+    }
+
+    // ============================================
+    // Announcements & Settings
+    // ============================================
+
+    loadAnnouncements() {
+        document.getElementById('announcement-text').value = AdminState.settings.announcement || '';
+        document.getElementById('announcement-preview').innerHTML = `<p>${AdminState.settings.announcement || 'No announcement'}</p>`;
+    }
+
+    async saveAnnouncement(e) {
+        e.preventDefault();
+        showAdminLoading('Saving...');
+        
+        AdminState.settings.announcement = document.getElementById('announcement-text').value.trim();
+        await this.saveData('settings');
+        
+        hideAdminLoading();
+        document.getElementById('announcement-preview').innerHTML = `<p>${AdminState.settings.announcement || 'No announcement'}</p>`;
+        showAdminToast('success', 'Saved', 'Announcement updated');
+    }
+
+    loadBroadcast() {
+        document.getElementById('broadcast-count').textContent = AdminState.users.length;
+    }
+
+    async sendBroadcast(e) {
+        e.preventDefault();
+        const message = document.getElementById('broadcast-message').value.trim();
+        if (!message) {
+            showAdminToast('warning', 'Required', 'Enter message');
+            return;
+        }
+        
+        if (!confirm(`Send to ${AdminState.users.length} users?`)) return;
+        
+        showAdminLoading('Sending...');
+        
+        AdminState.broadcasts.push({
+            id: 'bc_' + Date.now(),
+            message,
+            sentAt: new Date().toISOString(),
+            count: AdminState.users.length
+        });
+        await this.saveData('broadcasts');
+        
+        hideAdminLoading();
+        showAdminToast('success', 'Sent', `Broadcast sent to ${AdminState.users.length} users`);
+        document.getElementById('broadcast-form').reset();
+    }
+
+    loadBannedUsers() {
+        const container = document.getElementById('banned-users-list');
+        if (!container) return;
+        
+        if (AdminState.bannedUsers.length === 0) {
+            container.innerHTML = '<div class="empty-state"><i class="fas fa-user-check"></i><p>No banned users</p></div>';
+            return;
+        }
+        
+        container.innerHTML = AdminState.bannedUsers.map(u => `
+            <div class="banned-user-card">
+                <span>${u.firstName || ''} ${u.lastName || ''} (@${u.username || 'N/A'})</span>
+                <button onclick="adminPanel.unbanUser('${u.id}')"><i class="fas fa-user-check"></i> Unban</button>
+            </div>
+        `).join('');
+    }
+
+    async unbanUser(userId) {
+        if (!confirm('Unban?')) return;
+        
+        showAdminLoading('Unbanning...');
+        AdminState.bannedUsers = AdminState.bannedUsers.filter(u => String(u.id) !== String(userId));
+        await this.saveData('bannedUsers');
+        hideAdminLoading();
+        
+        showAdminToast('success', 'Unbanned', 'User unbanned');
+        this.loadBannedUsers();
+    }
+
+    loadSettingsPage() {
+        document.getElementById('site-name').value = AdminState.settings.siteName || 'Mafia Gaming Shop';
+        
+        if (AdminState.settings.logo) {
+            document.getElementById('logo-preview-img').src = AdminState.settings.logo;
+            document.getElementById('logo-preview')?.classList.remove('hidden');
+        }
+    }
+
+    async saveSettings(e) {
+        e.preventDefault();
+        showAdminLoading('Saving...');
+        
+        const siteName = document.getElementById('site-name').value.trim();
+        const theme = document.querySelector('input[name="theme"]:checked')?.value || 'dark';
+        const logoInput = document.getElementById('site-logo');
+        const previewImg = document.getElementById('logo-preview-img');
+        
+        let logo = AdminState.settings.logo || '';
+        if (logoInput?.files[0]) {
+            logo = await fileToBase64(logoInput.files[0]);
+        } else if (previewImg?.src) {
+            logo = previewImg.src;
+        }
+        
+        AdminState.settings = { ...AdminState.settings, siteName, theme, logo };
+        await this.saveData('settings');
+        
+        this.updateAdminInfo();
+        hideAdminLoading();
+        showAdminToast('success', 'Saved', 'Settings saved');
     }
 }
 
 // ============================================
-// Initialize App
+// Initialize
 // ============================================
 
-let app = null;
+let adminPanel = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
-    console.log('📄 Document ready');
+    console.log('📄 Admin Panel DOM ready');
     
-    app = new MafiaGamingApp();
-    await app.init();
+    adminPanel = new AdminPanel();
+    await adminPanel.init();
     
-    window.MafiaApp = app;
-    window.AppState = AppState;
+    window.adminPanel = adminPanel;
+    window.AdminState = AdminState;
+    window.AdminDB = AdminDB;
 });
 
-window.addEventListener('beforeunload', () => {
-    if (app) app.stopRealTimeSync();
-});
-
-console.log('📱 App.js v3.0.0 loaded (JSONBin Connected)');
+console.log('🔧 Admin.js v3.1.0 loaded');
