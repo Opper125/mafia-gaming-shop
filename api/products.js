@@ -1,10 +1,15 @@
 /* ============================================
    PRODUCTS API
-   Mafia Gaming Shop
+   Mafia Gaming Shop - Fixed for Real-Time Sync
    ============================================ */
 
 const JSONBIN_API = 'https://api.jsonbin.io/v3';
 const MASTER_KEY = process.env.JSONBIN_MASTER_KEY || '$2a$10$nweVi.eOGDsyC7uEsN/OxeLcIr8uhyN8x86AiIo8koJ.B7MX1I5Bu';
+
+// Helper to ensure data is array
+function ensureArray(data) {
+    return Array.isArray(data) ? data : [];
+}
 
 module.exports = async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -28,8 +33,12 @@ module.exports = async (req, res) => {
                 headers: { 'X-Master-Key': MASTER_KEY }
             });
             
+            if (!response.ok) {
+                return res.status(response.status).json({ error: `JSONBin error: ${response.status}` });
+            }
+            
             const data = await response.json();
-            let products = data.record || [];
+            let products = ensureArray(data.record);
 
             // Filter by category if provided
             if (categoryId) {
@@ -49,14 +58,19 @@ module.exports = async (req, res) => {
 
             // Bulk update
             if (allProducts) {
+                const validated = ensureArray(allProducts);
                 const updateResponse = await fetch(`${JSONBIN_API}/b/${binId}`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
                         'X-Master-Key': MASTER_KEY
                     },
-                    body: JSON.stringify(allProducts)
+                    body: JSON.stringify(validated)
                 });
+                
+                if (!updateResponse.ok) {
+                    return res.status(500).json({ error: 'Failed to update products' });
+                }
                 
                 return res.status(200).json({ success: true });
             }
@@ -67,8 +81,12 @@ module.exports = async (req, res) => {
                     headers: { 'X-Master-Key': MASTER_KEY }
                 });
                 
+                if (!getResponse.ok) {
+                    return res.status(500).json({ error: 'Failed to fetch products' });
+                }
+                
                 const getData = await getResponse.json();
-                let products = getData.record || [];
+                let products = ensureArray(getData.record);
 
                 const existingIndex = products.findIndex(p => p.id === product.id);
                 
@@ -96,7 +114,11 @@ module.exports = async (req, res) => {
                     body: JSON.stringify(products)
                 });
                 
-                return res.status(200).json({ success: true });
+                if (!updateResponse.ok) {
+                    return res.status(500).json({ error: 'Failed to save product' });
+                }
+                
+                return res.status(200).json({ success: true, id: product.id });
             }
 
             return res.status(400).json({ error: 'Product data required' });
@@ -114,8 +136,12 @@ module.exports = async (req, res) => {
                 headers: { 'X-Master-Key': MASTER_KEY }
             });
             
+            if (!getResponse.ok) {
+                return res.status(500).json({ error: 'Failed to fetch products' });
+            }
+            
             const getData = await getResponse.json();
-            let products = getData.record || [];
+            let products = ensureArray(getData.record);
 
             products = products.filter(p => p.id !== productId);
 
@@ -127,6 +153,10 @@ module.exports = async (req, res) => {
                 },
                 body: JSON.stringify(products)
             });
+            
+            if (!updateResponse.ok) {
+                return res.status(500).json({ error: 'Failed to delete product' });
+            }
             
             return res.status(200).json({ success: true });
         }
