@@ -1,0 +1,1191 @@
+<!DOCTYPE html>
+<html lang="my">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Admin Panel - Mafia Gaming Shop</title>
+    
+    <!-- Telegram WebApp Script -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Orbitron:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="admin-body">
+    <!-- Access Denied Screen -->
+    <div id="admin-access-denied" class="access-denied-screen hidden">
+        <div class="access-denied-content">
+            <div class="access-denied-icon danger">
+                <i class="fas fa-user-shield"></i>
+            </div>
+            <h1>Admin Access Only</h1>
+            <p>You don't have permission to access this page</p>
+            <p class="access-hint">Only authorized administrators can access this panel</p>
+        </div>
+    </div>
+
+    <!-- Admin Verification Screen -->
+    <div id="admin-verify-screen" class="admin-verify-screen hidden">
+        <div class="verify-container">
+            <div class="verify-icon">
+                <i class="fas fa-shield-alt"></i>
+            </div>
+            <h2>Admin Verification</h2>
+            <p>Enter your Telegram 2FA Password to continue</p>
+            <div class="verify-form">
+                <div class="form-group">
+                    <label><i class="fas fa-lock"></i> 2FA Password</label>
+                    <input type="password" id="admin-2fa-password" placeholder="Enter your Telegram password">
+                </div>
+                <button class="submit-btn" id="verify-admin-btn">
+                    <i class="fas fa-sign-in-alt"></i>
+                    Verify & Login
+                </button>
+            </div>
+            <div class="verify-status" id="verify-status"></div>
+        </div>
+    </div>
+
+    <!-- Admin Panel Main -->
+    <div id="admin-panel" class="admin-panel hidden">
+        <!-- Admin Header -->
+        <header class="admin-header">
+            <div class="admin-header-left">
+                <button class="menu-toggle" id="menu-toggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1><i class="fas fa-crown"></i> Admin Panel</h1>
+            </div>
+            <div class="admin-header-right">
+                <div class="admin-info">
+                    <span id="admin-name">Admin</span>
+                    <img id="admin-avatar" src="" alt="Admin">
+                </div>
+            </div>
+        </header>
+
+        <!-- Admin Sidebar -->
+        <aside class="admin-sidebar" id="admin-sidebar">
+            <div class="sidebar-header">
+                <img id="sidebar-logo" src="" alt="Logo">
+                <span id="sidebar-site-name">Mafia Gaming Shop</span>
+            </div>
+            <nav class="sidebar-nav">
+                <div class="nav-section">
+                    <span class="nav-section-title">Main</span>
+                    <a href="#" class="nav-link active" data-page="dashboard">
+                        <i class="fas fa-tachometer-alt"></i>
+                        <span>Dashboard</span>
+                    </a>
+                    <a href="#" class="nav-link" data-page="users">
+                        <i class="fas fa-users"></i>
+                        <span>Users</span>
+                        <span class="nav-badge" id="users-count">0</span>
+                    </a>
+                    <a href="#" class="nav-link" data-page="orders">
+                        <i class="fas fa-shopping-bag"></i>
+                        <span>Orders</span>
+                        <span class="nav-badge pending" id="pending-orders">0</span>
+                    </a>
+                    <a href="#" class="nav-link" data-page="topup-requests">
+                        <i class="fas fa-money-bill-wave"></i>
+                        <span>Topup Requests</span>
+                        <span class="nav-badge pending" id="pending-topups">0</span>
+                    </a>
+                </div>
+
+                <div class="nav-section">
+                    <span class="nav-section-title">Content</span>
+                    <a href="#" class="nav-link" data-page="banners">
+                        <i class="fas fa-images"></i>
+                        <span>Banners</span>
+                    </a>
+                    <a href="#" class="nav-link" data-page="categories">
+                        <i class="fas fa-th-large"></i>
+                        <span>Categories</span>
+                    </a>
+                    <a href="#" class="nav-link" data-page="products">
+                        <i class="fas fa-box"></i>
+                        <span>Products</span>
+                    </a>
+                    <a href="#" class="nav-link" data-page="input-tables">
+                        <i class="fas fa-keyboard"></i>
+                        <span>Input Tables</span>
+                    </a>
+                </div>
+
+                <div class="nav-section">
+                    <span class="nav-section-title">Settings</span>
+                    <a href="#" class="nav-link" data-page="payments">
+                        <i class="fas fa-credit-card"></i>
+                        <span>Payment Methods</span>
+                    </a>
+                    <a href="#" class="nav-link" data-page="announcements">
+                        <i class="fas fa-bullhorn"></i>
+                        <span>Announcements</span>
+                    </a>
+                    <a href="#" class="nav-link" data-page="broadcast">
+                        <i class="fas fa-paper-plane"></i>
+                        <span>Broadcast</span>
+                    </a>
+                    <a href="#" class="nav-link" data-page="banned-users">
+                        <i class="fas fa-user-slash"></i>
+                        <span>Banned Users</span>
+                    </a>
+                    <a href="#" class="nav-link" data-page="settings">
+                        <i class="fas fa-cog"></i>
+                        <span>Site Settings</span>
+                    </a>
+                </div>
+            </nav>
+            <div class="sidebar-footer">
+                <button class="back-to-shop" id="back-to-shop">
+                    <i class="fas fa-store"></i>
+                    <span>Back to Shop</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Admin Content -->
+        <main class="admin-content">
+            <!-- Dashboard Page -->
+            <section id="page-dashboard" class="admin-page active">
+                <div class="page-header">
+                    <h2>Dashboard</h2>
+                    <p>Welcome back, Admin!</p>
+                </div>
+
+                <!-- Stats Cards -->
+                <div class="stats-grid">
+                    <div class="stat-card purple">
+                        <div class="stat-icon">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div class="stat-details">
+                            <h3 id="total-users">0</h3>
+                            <p>Total Users</p>
+                        </div>
+                    </div>
+                    <div class="stat-card blue">
+                        <div class="stat-icon">
+                            <i class="fas fa-shopping-cart"></i>
+                        </div>
+                        <div class="stat-details">
+                            <h3 id="total-orders">0</h3>
+                            <p>Total Orders</p>
+                        </div>
+                    </div>
+                    <div class="stat-card green">
+                        <div class="stat-icon">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="stat-details">
+                            <h3 id="approved-orders">0</h3>
+                            <p>Approved Orders</p>
+                        </div>
+                    </div>
+                    <div class="stat-card orange">
+                        <div class="stat-icon">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="stat-details">
+                            <h3 id="pending-orders-count">0</h3>
+                            <p>Pending Orders</p>
+                        </div>
+                    </div>
+                    <div class="stat-card red">
+                        <div class="stat-icon">
+                            <i class="fas fa-times-circle"></i>
+                        </div>
+                        <div class="stat-details">
+                            <h3 id="rejected-orders">0</h3>
+                            <p>Rejected Orders</p>
+                        </div>
+                    </div>
+                    <div class="stat-card gold">
+                        <div class="stat-icon">
+                            <i class="fas fa-coins"></i>
+                        </div>
+                        <div class="stat-details">
+                            <h3 id="total-revenue">0 MMK</h3>
+                            <p>Total Revenue</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Activity -->
+                <div class="dashboard-grid">
+                    <div class="dashboard-card">
+                        <div class="card-header">
+                            <h3><i class="fas fa-clock"></i> Recent Orders</h3>
+                            <a href="#" class="view-all" data-page="orders">View All</a>
+                        </div>
+                        <div class="card-body">
+                            <div class="recent-list" id="recent-orders">
+                                <!-- Recent orders will be loaded here -->
+                            </div>
+                        </div>
+                    </div>
+                    <div class="dashboard-card">
+                        <div class="card-header">
+                            <h3><i class="fas fa-money-bill-wave"></i> Recent Topups</h3>
+                            <a href="#" class="view-all" data-page="topup-requests">View All</a>
+                        </div>
+                        <div class="card-body">
+                            <div class="recent-list" id="recent-topups">
+                                <!-- Recent topups will be loaded here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="quick-actions">
+                    <h3><i class="fas fa-bolt"></i> Quick Actions</h3>
+                    <div class="actions-grid">
+                        <button class="action-btn" data-action="add-category">
+                            <i class="fas fa-plus"></i>
+                            <span>Add Category</span>
+                        </button>
+                        <button class="action-btn" data-action="add-product">
+                            <i class="fas fa-box"></i>
+                            <span>Add Product</span>
+                        </button>
+                        <button class="action-btn" data-action="add-banner">
+                            <i class="fas fa-image"></i>
+                            <span>Add Banner</span>
+                        </button>
+                        <button class="action-btn" data-action="broadcast">
+                            <i class="fas fa-paper-plane"></i>
+                            <span>Broadcast</span>
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Users Page -->
+            <section id="page-users" class="admin-page">
+                <div class="page-header">
+                    <h2><i class="fas fa-users"></i> Users Management</h2>
+                    <div class="header-actions">
+                        <div class="search-box">
+                            <i class="fas fa-search"></i>
+                            <input type="text" id="search-users" placeholder="Search users...">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="users-filter">
+                    <button class="filter-btn active" data-filter="all">All Users</button>
+                    <button class="filter-btn" data-filter="premium">Premium</button>
+                    <button class="filter-btn" data-filter="regular">Regular</button>
+                </div>
+
+                <div class="data-table-container">
+                    <table class="data-table" id="users-table">
+                        <thead>
+                            <tr>
+                                <th>User</th>
+                                <th>Telegram ID</th>
+                                <th>Balance</th>
+                                <th>Orders</th>
+                                <th>Status</th>
+                                <th>Joined</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="users-tbody">
+                            <!-- Users will be loaded here -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- User Details Modal -->
+            <div class="modal" id="user-details-modal">
+                <div class="modal-overlay"></div>
+                <div class="modal-content large">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-user"></i> User Details</h3>
+                        <button class="modal-close" id="close-user-modal">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="user-profile-section">
+                            <div class="user-avatar-large">
+                                <img id="modal-user-avatar" src="" alt="">
+                            </div>
+                            <div class="user-info-details">
+                                <h3 id="modal-user-name">User Name</h3>
+                                <p id="modal-user-username">@username</p>
+                                <div class="user-badges">
+                                    <span class="badge premium" id="modal-premium-badge" style="display:none;">
+                                        <i class="fas fa-crown"></i> Premium
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="user-stats-grid">
+                            <div class="user-stat">
+                                <i class="fas fa-wallet"></i>
+                                <span class="value" id="modal-balance">0 MMK</span>
+                                <span class="label">Balance</span>
+                            </div>
+                            <div class="user-stat">
+                                <i class="fas fa-shopping-bag"></i>
+                                <span class="value" id="modal-total-orders">0</span>
+                                <span class="label">Total Orders</span>
+                            </div>
+                            <div class="user-stat">
+                                <i class="fas fa-check"></i>
+                                <span class="value" id="modal-approved">0</span>
+                                <span class="label">Approved</span>
+                            </div>
+                            <div class="user-stat">
+                                <i class="fas fa-times"></i>
+                                <span class="value" id="modal-rejected">0</span>
+                                <span class="label">Rejected</span>
+                            </div>
+                            <div class="user-stat">
+                                <i class="fas fa-money-bill"></i>
+                                <span class="value" id="modal-total-topup">0 MMK</span>
+                                <span class="label">Total Topup</span>
+                            </div>
+                            <div class="user-stat">
+                                <i class="fas fa-calendar"></i>
+                                <span class="value" id="modal-joined">-</span>
+                                <span class="label">Joined</span>
+                            </div>
+                        </div>
+
+                        <div class="user-tabs">
+                            <button class="tab-btn active" data-tab="user-orders">Orders</button>
+                            <button class="tab-btn" data-tab="user-topups">Topups</button>
+                            <button class="tab-btn" data-tab="user-history">History</button>
+                        </div>
+
+                        <div class="user-tab-content" id="user-orders-tab">
+                            <div class="mini-table" id="user-orders-list">
+                                <!-- User orders will be loaded here -->
+                            </div>
+                        </div>
+                        <div class="user-tab-content hidden" id="user-topups-tab">
+                            <div class="mini-table" id="user-topups-list">
+                                <!-- User topups will be loaded here -->
+                            </div>
+                        </div>
+                        <div class="user-tab-content hidden" id="user-history-tab">
+                            <div class="mini-table" id="user-history-list">
+                                <!-- User history will be loaded here -->
+                            </div>
+                        </div>
+
+                        <div class="user-actions">
+                            <div class="form-group inline">
+                                <label>Adjust Balance:</label>
+                                <input type="number" id="adjust-balance-amount" placeholder="Amount">
+                                <button class="btn-success" id="add-balance-btn">
+                                    <i class="fas fa-plus"></i> Add
+                                </button>
+                                <button class="btn-danger" id="deduct-balance-btn">
+                                    <i class="fas fa-minus"></i> Deduct
+                                </button>
+                            </div>
+                            <button class="btn-danger full" id="ban-user-btn">
+                                <i class="fas fa-user-slash"></i> Ban User
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Orders Page -->
+            <section id="page-orders" class="admin-page">
+                <div class="page-header">
+                    <h2><i class="fas fa-shopping-bag"></i> Orders Management</h2>
+                    <div class="header-actions">
+                        <div class="search-box">
+                            <i class="fas fa-search"></i>
+                            <input type="text" id="search-orders" placeholder="Search orders...">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="orders-filter">
+                    <button class="filter-btn active" data-filter="all">All</button>
+                    <button class="filter-btn" data-filter="pending">Pending</button>
+                    <button class="filter-btn" data-filter="approved">Approved</button>
+                    <button class="filter-btn" data-filter="rejected">Rejected</button>
+                </div>
+
+                <div class="orders-list admin-orders" id="admin-orders-list">
+                    <!-- Orders will be loaded here -->
+                </div>
+            </section>
+
+            <!-- Order Details Modal -->
+            <div class="modal" id="order-details-modal">
+                <div class="modal-overlay"></div>
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-receipt"></i> Order Details</h3>
+                        <button class="modal-close" id="close-order-modal">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="order-info-grid">
+                            <div class="order-info-item">
+                                <span class="label">Order ID</span>
+                                <span class="value" id="order-id">#000000</span>
+                            </div>
+                            <div class="order-info-item">
+                                <span class="label">Status</span>
+                                <span class="value status" id="order-status">Pending</span>
+                            </div>
+                            <div class="order-info-item">
+                                <span class="label">Date</span>
+                                <span class="value" id="order-date">-</span>
+                            </div>
+                        </div>
+
+                        <div class="order-user-info">
+                            <h4>Customer Info</h4>
+                            <div class="user-mini-card">
+                                <img id="order-user-avatar" src="" alt="">
+                                <div class="info">
+                                    <span class="name" id="order-user-name">User Name</span>
+                                    <span class="id" id="order-user-id">ID: 000000</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="order-product-info">
+                            <h4>Product</h4>
+                            <div class="product-mini-card">
+                                <img id="order-product-icon" src="" alt="">
+                                <div class="info">
+                                    <span class="name" id="order-product-name">Product Name</span>
+                                    <span class="amount" id="order-product-amount">Amount</span>
+                                </div>
+                                <span class="price" id="order-product-price">0 MMK</span>
+                            </div>
+                        </div>
+
+                        <div class="order-input-info" id="order-input-info">
+                            <h4>Customer Input</h4>
+                            <div class="input-values" id="order-input-values">
+                                <!-- Input values will be shown here -->
+                            </div>
+                        </div>
+
+                        <div class="order-actions" id="order-actions">
+                            <button class="btn-success" id="approve-order-btn">
+                                <i class="fas fa-check"></i> Approve Order
+                            </button>
+                            <button class="btn-danger" id="reject-order-btn">
+                                <i class="fas fa-times"></i> Reject Order
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Topup Requests Page -->
+            <section id="page-topup-requests" class="admin-page">
+                <div class="page-header">
+                    <h2><i class="fas fa-money-bill-wave"></i> Topup Requests</h2>
+                </div>
+
+                <div class="topup-filter">
+                    <button class="filter-btn active" data-filter="all">All</button>
+                    <button class="filter-btn" data-filter="pending">Pending</button>
+                    <button class="filter-btn" data-filter="approved">Approved</button>
+                    <button class="filter-btn" data-filter="rejected">Rejected</button>
+                </div>
+
+                <div class="topup-requests-list" id="topup-requests-list">
+                    <!-- Topup requests will be loaded here -->
+                </div>
+            </section>
+
+            <!-- Topup Request Modal -->
+            <div class="modal" id="topup-request-modal">
+                <div class="modal-overlay"></div>
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-money-bill-wave"></i> Topup Request</h3>
+                        <button class="modal-close" id="close-topup-request-modal">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="topup-user-info">
+                            <img id="topup-user-avatar" src="" alt="">
+                            <div class="info">
+                                <span class="name" id="topup-user-name">User Name</span>
+                                <span class="id" id="topup-user-id">ID: 000000</span>
+                            </div>
+                        </div>
+
+                        <div class="topup-details">
+                            <div class="detail-row">
+                                <span class="label">Amount</span>
+                                <span class="value" id="topup-amount-value">0 MMK</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="label">Payment Method</span>
+                                <span class="value" id="topup-payment-method">-</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="label">Date</span>
+                                <span class="value" id="topup-date">-</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="label">Status</span>
+                                <span class="value status" id="topup-status">Pending</span>
+                            </div>
+                        </div>
+
+                        <div class="screenshot-preview">
+                            <h4>Payment Screenshot</h4>
+                            <img id="topup-screenshot" src="" alt="Screenshot">
+                        </div>
+
+                        <div class="topup-actions" id="topup-actions">
+                            <button class="btn-success" id="approve-topup-btn">
+                                <i class="fas fa-check"></i> Approve
+                            </button>
+                            <button class="btn-danger" id="reject-topup-btn">
+                                <i class="fas fa-times"></i> Reject
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Banners Page -->
+            <section id="page-banners" class="admin-page">
+                <div class="page-header">
+                    <h2><i class="fas fa-images"></i> Banners Management</h2>
+                </div>
+
+                <div class="banner-tabs">
+                    <button class="tab-btn active" data-tab="type1">
+                        <i class="fas fa-home"></i> Home Banners (Type 1)
+                    </button>
+                    <button class="tab-btn" data-tab="type2">
+                        <i class="fas fa-th-large"></i> Category Banners (Type 2)
+                    </button>
+                </div>
+
+                <!-- Type 1 Banners -->
+                <div class="banner-section" id="type1-section">
+                    <div class="section-header">
+                        <h3>Home Page Banners</h3>
+                        <button class="add-btn" id="add-type1-banner">
+                            <i class="fas fa-plus"></i> Add Banner
+                        </button>
+                    </div>
+                    <p class="section-desc">These banners will be displayed on the home page carousel (2560 x 1440 recommended)</p>
+                    <div class="banners-grid" id="type1-banners">
+                        <!-- Type 1 banners will be loaded here -->
+                    </div>
+                </div>
+
+                <!-- Type 2 Banners -->
+                <div class="banner-section hidden" id="type2-section">
+                    <div class="section-header">
+                        <h3>Category Page Banners</h3>
+                        <button class="add-btn" id="add-type2-banner">
+                            <i class="fas fa-plus"></i> Add Banner
+                        </button>
+                    </div>
+                    <p class="section-desc">These banners will be displayed at the bottom of category pages with instructions</p>
+                    <div class="banners-list" id="type2-banners">
+                        <!-- Type 2 banners will be loaded here -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- Add Banner Modal (Type 1) -->
+            <div class="modal" id="add-banner-modal">
+                <div class="modal-overlay"></div>
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-image"></i> <span id="banner-modal-title">Add Banner</span></h3>
+                        <button class="modal-close" id="close-banner-modal">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="banner-form">
+                            <input type="hidden" id="banner-id">
+                            <input type="hidden" id="banner-type" value="type1">
+                            
+                            <div class="form-group" id="banner-category-group" style="display:none;">
+                                <label>Select Category</label>
+                                <select id="banner-category">
+                                    <!-- Categories will be loaded here -->
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Banner Image</label>
+                                <div class="file-upload" id="banner-file-upload">
+                                    <input type="file" id="banner-image" accept="image/*">
+                                    <div class="file-upload-content">
+                                        <i class="fas fa-cloud-upload-alt"></i>
+                                        <p>Click or drag to upload</p>
+                                        <span>Recommended: 2560 x 1440</span>
+                                    </div>
+                                    <div class="file-preview hidden" id="banner-preview">
+                                        <img src="" alt="" id="banner-preview-img">
+                                        <button type="button" class="remove-file" id="remove-banner-file">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-group" id="banner-instructions-group" style="display:none;">
+                                <label>Instructions / Description</label>
+                                <textarea id="banner-instructions" rows="6" placeholder="Enter instructions or description for this category..."></textarea>
+                            </div>
+
+                            <button type="submit" class="submit-btn">
+                                <i class="fas fa-save"></i> Save Banner
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Categories Page -->
+            <section id="page-categories" class="admin-page">
+                <div class="page-header">
+                    <h2><i class="fas fa-th-large"></i> Categories Management</h2>
+                    <button class="add-btn" id="add-category-btn">
+                        <i class="fas fa-plus"></i> Add Category
+                    </button>
+                </div>
+
+                <div class="categories-list admin-categories" id="admin-categories">
+                    <!-- Categories will be loaded here -->
+                </div>
+            </section>
+
+            <!-- Add/Edit Category Modal -->
+            <div class="modal" id="category-modal">
+                <div class="modal-overlay"></div>
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-th-large"></i> <span id="category-modal-title">Add Category</span></h3>
+                        <button class="modal-close" id="close-category-modal">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="category-form">
+                            <input type="hidden" id="category-id">
+
+                            <div class="form-group">
+                                <label>Category Name</label>
+                                <input type="text" id="category-name" placeholder="e.g., PUBG Mobile" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Category Icon</label>
+                                <div class="file-upload" id="category-icon-upload">
+                                    <input type="file" id="category-icon" accept="image/*">
+                                    <div class="file-upload-content">
+                                        <i class="fas fa-cloud-upload-alt"></i>
+                                        <p>Upload Icon</p>
+                                    </div>
+                                    <div class="file-preview hidden" id="category-icon-preview">
+                                        <img src="" alt="" id="category-icon-img">
+                                        <button type="button" class="remove-file" id="remove-category-icon">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Country Flag</label>
+                                <select id="category-flag">
+                                    <option value="">No Flag</option>
+                                    <option value="🇲🇲">🇲🇲 Myanmar</option>
+                                    <option value="🇨🇳">🇨🇳 China</option>
+                                    <option value="🇺🇸">🇺🇸 USA</option>
+                                    <option value="🇯🇵">🇯🇵 Japan</option>
+                                    <option value="🇰🇷">🇰🇷 Korea</option>
+                                    <option value="🇹🇭">🇹🇭 Thailand</option>
+                                    <option value="🇻🇳">🇻🇳 Vietnam</option>
+                                    <option value="🇮🇩">🇮🇩 Indonesia</option>
+                                    <option value="🇵🇭">🇵🇭 Philippines</option>
+                                    <option value="🇲🇾">🇲🇾 Malaysia</option>
+                                    <option value="🇸🇬">🇸🇬 Singapore</option>
+                                    <option value="🇮🇳">🇮🇳 India</option>
+                                    <option value="🌍">🌍 Global</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group checkbox-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="category-has-discount">
+                                    <span class="checkmark"></span>
+                                    Has Discount / Promotion
+                                </label>
+                            </div>
+
+                            <button type="submit" class="submit-btn">
+                                <i class="fas fa-save"></i> Save Category
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Products Page -->
+            <section id="page-products" class="admin-page">
+                <div class="page-header">
+                    <h2><i class="fas fa-box"></i> Products Management</h2>
+                    <button class="add-btn" id="add-product-btn">
+                        <i class="fas fa-plus"></i> Add Product
+                    </button>
+                </div>
+
+                <div class="filter-bar">
+                    <select id="filter-product-category">
+                        <option value="">All Categories</option>
+                        <!-- Categories will be loaded here -->
+                    </select>
+                </div>
+
+                <div class="products-list admin-products" id="admin-products">
+                    <!-- Products will be loaded here -->
+                </div>
+            </section>
+
+            <!-- Add/Edit Product Modal -->
+            <div class="modal" id="product-modal">
+                <div class="modal-overlay"></div>
+                <div class="modal-content large">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-box"></i> <span id="product-modal-title">Add Product</span></h3>
+                        <button class="modal-close" id="close-product-modal">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="product-form">
+                            <input type="hidden" id="product-id">
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Select Category</label>
+                                    <select id="product-category" required>
+                                        <option value="">Choose Category</option>
+                                        <!-- Categories will be loaded here -->
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Product Name / Amount</label>
+                                    <input type="text" id="product-name" placeholder="e.g., 60 UC" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Product Icon</label>
+                                    <div class="file-upload small" id="product-icon-upload">
+                                        <input type="file" id="product-icon" accept="image/*">
+                                        <div class="file-upload-content">
+                                            <i class="fas fa-image"></i>
+                                        </div>
+                                        <div class="file-preview hidden" id="product-icon-preview">
+                                            <img src="" alt="" id="product-icon-img">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Original Price</label>
+                                    <input type="number" id="product-price" placeholder="e.g., 5000" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Currency</label>
+                                    <select id="product-currency">
+                                        <option value="MMK">MMK (Myanmar Kyat)</option>
+                                        <option value="¥">¥ (Chinese Yuan)</option>
+                                        <option value="$">$ (US Dollar)</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="form-group checkbox-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="product-has-discount">
+                                    <span class="checkmark"></span>
+                                    Has Discount
+                                </label>
+                            </div>
+
+                            <div class="form-row discount-fields hidden" id="discount-fields">
+                                <div class="form-group">
+                                    <label>Discount Percentage (%)</label>
+                                    <input type="number" id="product-discount" placeholder="e.g., 10" min="1" max="99">
+                                </div>
+                                <div class="form-group">
+                                    <label>Discounted Price</label>
+                                    <input type="number" id="product-discounted-price" readonly>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Delivery Time</label>
+                                <select id="product-delivery">
+                                    <option value="instant">Instant Delivery</option>
+                                    <option value="30min">30 Minutes</option>
+                                    <option value="1hour">1 Hour</option>
+                                    <option value="2hours">2 Hours</option>
+                                    <option value="6hours">6 Hours</option>
+                                    <option value="12hours">12 Hours</option>
+                                    <option value="24hours">24 Hours</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group checkbox-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="product-active" checked>
+                                    <span class="checkmark"></span>
+                                    Active (Available for purchase)
+                                </label>
+                            </div>
+
+                            <button type="submit" class="submit-btn">
+                                <i class="fas fa-save"></i> Save Product
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Input Tables Page -->
+            <section id="page-input-tables" class="admin-page">
+                <div class="page-header">
+                    <h2><i class="fas fa-keyboard"></i> Input Tables Management</h2>
+                    <button class="add-btn" id="add-input-table-btn">
+                        <i class="fas fa-plus"></i> Add Input Table
+                    </button>
+                </div>
+
+                <p class="page-desc">Input tables are required fields that customers must fill before purchasing products in a category.</p>
+
+                <div class="input-tables-list" id="admin-input-tables">
+                    <!-- Input tables will be loaded here -->
+                </div>
+            </section>
+
+            <!-- Add/Edit Input Table Modal -->
+            <div class="modal" id="input-table-modal">
+                <div class="modal-overlay"></div>
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-keyboard"></i> <span id="input-table-modal-title">Add Input Table</span></h3>
+                        <button class="modal-close" id="close-input-table-modal">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="input-table-form">
+                            <input type="hidden" id="input-table-id">
+
+                            <div class="form-group">
+                                <label>Select Category</label>
+                                <select id="input-table-category" required>
+                                    <option value="">Choose Category</option>
+                                    <!-- Categories will be loaded here -->
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Input Field Name</label>
+                                <input type="text" id="input-table-name" placeholder="e.g., Player ID" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Placeholder / Hint Text</label>
+                                <input type="text" id="input-table-placeholder" placeholder="e.g., Enter your Player ID here">
+                            </div>
+
+                            <div class="form-group checkbox-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="input-table-required" checked>
+                                    <span class="checkmark"></span>
+                                    Required Field
+                                </label>
+                            </div>
+
+                            <button type="submit" class="submit-btn">
+                                <i class="fas fa-save"></i> Save Input Table
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Payment Methods Page -->
+            <section id="page-payments" class="admin-page">
+                <div class="page-header">
+                    <h2><i class="fas fa-credit-card"></i> Payment Methods</h2>
+                    <button class="add-btn" id="add-payment-btn">
+                        <i class="fas fa-plus"></i> Add Payment
+                    </button>
+                </div>
+
+                <div class="payments-list" id="admin-payments">
+                    <!-- Payment methods will be loaded here -->
+                </div>
+            </section>
+
+            <!-- Add/Edit Payment Modal -->
+            <div class="modal" id="payment-modal">
+                <div class="modal-overlay"></div>
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-credit-card"></i> <span id="payment-modal-title">Add Payment Method</span></h3>
+                        <button class="modal-close" id="close-payment-modal">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="payment-form">
+                            <input type="hidden" id="payment-id">
+
+                            <div class="form-group">
+                                <label>Payment Name</label>
+                                <input type="text" id="payment-name" placeholder="e.g., KBZ Pay" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Payment Address / Number</label>
+                                <input type="text" id="payment-address" placeholder="e.g., 09123456789" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Account Holder Name</label>
+                                <input type="text" id="payment-holder" placeholder="e.g., Mafia Gaming" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Payment Icon</label>
+                                <div class="file-upload" id="payment-icon-upload">
+                                    <input type="file" id="payment-icon" accept="image/*">
+                                    <div class="file-upload-content">
+                                        <i class="fas fa-cloud-upload-alt"></i>
+                                        <p>Upload Icon</p>
+                                    </div>
+                                    <div class="file-preview hidden" id="payment-icon-preview">
+                                        <img src="" alt="" id="payment-icon-img">
+                                        <button type="button" class="remove-file" id="remove-payment-icon">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Note / Instructions</label>
+                                <textarea id="payment-note" rows="3" placeholder="Any additional instructions..."></textarea>
+                            </div>
+
+                            <div class="form-group checkbox-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="payment-active" checked>
+                                    <span class="checkmark"></span>
+                                    Active
+                                </label>
+                            </div>
+
+                            <button type="submit" class="submit-btn">
+                                <i class="fas fa-save"></i> Save Payment Method
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Announcements Page -->
+            <section id="page-announcements" class="admin-page">
+                <div class="page-header">
+                    <h2><i class="fas fa-bullhorn"></i> Announcements</h2>
+                </div>
+
+                <div class="announcement-form-section">
+                    <h3>Live Ticker Text</h3>
+                    <p>This text will scroll across the home page below the banner</p>
+                    <form id="announcement-form">
+                        <div class="form-group">
+                            <textarea id="announcement-text" rows="3" placeholder="Enter announcement text..."></textarea>
+                        </div>
+                        <button type="submit" class="submit-btn">
+                            <i class="fas fa-save"></i> Save Announcement
+                        </button>
+                    </form>
+                </div>
+
+                <div class="current-announcement">
+                    <h4>Current Announcement</h4>
+                    <div class="announcement-preview" id="announcement-preview">
+                        <p>No announcement set</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Broadcast Page -->
+            <section id="page-broadcast" class="admin-page">
+                <div class="page-header">
+                    <h2><i class="fas fa-paper-plane"></i> Broadcast Message</h2>
+                </div>
+
+                <div class="broadcast-form-section">
+                    <p>Send a message to all users via Telegram bot</p>
+                    <form id="broadcast-form">
+                        <div class="form-group">
+                            <label>Message</label>
+                            <textarea id="broadcast-message" rows="5" placeholder="Enter your message..."></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Attach Image (Optional)</label>
+                            <div class="file-upload" id="broadcast-image-upload">
+                                <input type="file" id="broadcast-image" accept="image/*">
+                                <div class="file-upload-content">
+                                    <i class="fas fa-image"></i>
+                                    <p>Upload Image</p>
+                                </div>
+                                <div class="file-preview hidden" id="broadcast-image-preview">
+                                    <img src="" alt="" id="broadcast-image-img">
+                                    <button type="button" class="remove-file" id="remove-broadcast-image">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="broadcast-stats">
+                            <p>This message will be sent to <strong id="broadcast-count">0</strong> users</p>
+                        </div>
+
+                        <button type="submit" class="submit-btn">
+                            <i class="fas fa-paper-plane"></i> Send Broadcast
+                        </button>
+                    </form>
+                </div>
+
+                <div class="broadcast-history">
+                    <h3>Recent Broadcasts</h3>
+                    <div class="broadcasts-list" id="broadcasts-list">
+                        <!-- Broadcast history will be loaded here -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- Banned Users Page -->
+            <section id="page-banned-users" class="admin-page">
+                <div class="page-header">
+                    <h2><i class="fas fa-user-slash"></i> Banned Users</h2>
+                </div>
+
+                <div class="banned-users-list" id="banned-users-list">
+                    <!-- Banned users will be loaded here -->
+                </div>
+            </section>
+
+            <!-- Settings Page -->
+            <section id="page-settings" class="admin-page">
+                <div class="page-header">
+                    <h2><i class="fas fa-cog"></i> Site Settings</h2>
+                </div>
+
+                <div class="settings-form-section">
+                    <form id="settings-form">
+                        <div class="settings-card">
+                            <h3><i class="fas fa-image"></i> Site Logo</h3>
+                            <div class="form-group">
+                                <div class="file-upload" id="logo-upload">
+                                    <input type="file" id="site-logo" accept="image/*">
+                                    <div class="file-upload-content">
+                                        <i class="fas fa-cloud-upload-alt"></i>
+                                        <p>Upload Logo</p>
+                                    </div>
+                                    <div class="file-preview" id="logo-preview">
+                                        <img src="" alt="" id="logo-preview-img">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="settings-card">
+                            <h3><i class="fas fa-heading"></i> Site Name</h3>
+                            <div class="form-group">
+                                <input type="text" id="site-name" placeholder="Enter site name">
+                            </div>
+                        </div>
+
+                        <div class="settings-card">
+                            <h3><i class="fas fa-palette"></i> Theme</h3>
+                            <div class="theme-options">
+                                <label class="theme-option">
+                                    <input type="radio" name="theme" value="dark" checked>
+                                    <span class="theme-preview dark">
+                                        <i class="fas fa-moon"></i> Dark
+                                    </span>
+                                </label>
+                                <label class="theme-option">
+                                    <input type="radio" name="theme" value="light">
+                                    <span class="theme-preview light">
+                                        <i class="fas fa-sun"></i> Light
+                                    </span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="submit-btn">
+                            <i class="fas fa-save"></i> Save Settings
+                        </button>
+                    </form>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay hidden" id="loading-overlay">
+        <div class="loading-spinner">
+            <i class="fas fa-spinner fa-spin"></i>
+            <p id="loading-text">Loading...</p>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="admin-toast-container"></div>
+
+    <!-- Scripts -->
+    <script src="js/telegram-init.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/admin.js"></script>
+</body>
+</html>
