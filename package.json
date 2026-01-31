@@ -1,13 +1,19 @@
 {
   "name": "mafia-gaming-shop",
   "version": "1.0.0",
-  "description": "MAFIA Gaming Shop - Telegram Mini App for PUBG & MLBB Top-up",
-  "private": true,
+  "description": "Gaming UC & Diamond Topup Shop with Telegram Integration",
+  "main": "api/telegram.js",
   "scripts": {
-    "start": "npx serve .",
-    "build": "echo 'Static site - no build needed'"
+    "start": "node api/telegram.js",
+    "dev": "nodemon api/telegram.js"
   },
-  "keywords": ["telegram", "mini-app", "gaming", "topup", "pubg", "mlbb"],
-  "author": "MAFIA Gaming",
+  "dependencies": {
+    "node-fetch": "^2.6.9",
+    "crypto": "^1.0.1"
+  },
+  "engines": {
+    "node": "18.x"
+  },
+  "author": "Mafia Gaming Shop",
   "license": "MIT"
 }
