@@ -5,7 +5,7 @@
 
 const BOT_TOKEN = process.env.BOT_TOKEN || '8506121473:AAE6LXKDj6J8GR9HKYNzkq47EVa7tV8BBUM';
 const ADMIN_TELEGRAM_ID = process.env.ADMIN_TELEGRAM_ID || '1538232799';
-const WEBAPP_URL = process.env.WEBAPP_URL || 'https://mafia-gamin-shop.vercel.app';
+const WEBAPP_URL = process.env.WEBAPP_URL || 'https://mafia-gaming-shop.vercel.app';
 
 // Telegram API Base URL
 const TELEGRAM_API = `https://api.telegram.org/bot${BOT_TOKEN}`;
