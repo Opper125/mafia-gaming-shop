@@ -1,12 +1,16 @@
 /* ============================================
    BROADCAST API
-   Mafia Gaming Shop
+   Mafia Gaming Shop - Fixed for Real-Time Sync
    ============================================ */
 
 const { broadcastMessage, sendMessage, sendPhoto } = require('./telegram');
 
 const JSONBIN_API = 'https://api.jsonbin.io/v3';
 const MASTER_KEY = process.env.JSONBIN_MASTER_KEY || '$2a$10$nweVi.eOGDsyC7uEsN/OxeLcIr8uhyN8x86AiIo8koJ.B7MX1I5Bu';
+
+function ensureArray(data) {
+    return Array.isArray(data) ? data : [];
+}
 
 module.exports = async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -29,8 +33,13 @@ module.exports = async (req, res) => {
                 const response = await fetch(`${JSONBIN_API}/b/${usersBinId}/latest`, {
                     headers: { 'X-Master-Key': MASTER_KEY }
                 });
+                
+                if (!response.ok) {
+                    return res.status(500).json({ error: 'Failed to fetch users' });
+                }
+                
                 const data = await response.json();
-                users = data.record || [];
+                users = ensureArray(data.record);
             }
 
             if (users.length === 0) {
