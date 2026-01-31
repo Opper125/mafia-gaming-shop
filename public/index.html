@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="my">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mafia Gaming Shop</title>
+    
+    <!-- Telegram WebApp Script -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Orbitron:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <!-- Access Denied Screen (For Browser Access) -->
+    <div id="access-denied" class="access-denied-screen hidden">
+        <div class="access-denied-content">
+            <div class="access-denied-icon">
+                <i class="fas fa-shield-alt"></i>
+            </div>
+            <h1>Access Denied</h1>
+            <p>This website can only be accessed through Telegram Bot</p>
+            <div class="telegram-bot-link">
+                <i class="fab fa-telegram"></i>
+                <span>@mafia_gamingshopbot</span>
+            </div>
+            <p class="access-hint">Open the bot in Telegram and use Mini App to access</p>
+        </div>
+    </div>
+
+    <!-- Logo Intro Screen -->
+    <div id="intro-screen" class="intro-screen">
+        <div class="intro-container">
+            <div class="logo-wrapper">
+                <div class="logo-glow"></div>
+                <img id="intro-logo" src="" alt="Mafia Gaming Shop" class="intro-logo">
+                <div class="logo-particles">
+                    <span></span><span></span><span></span>
+                    <span></span><span></span><span></span>
+                    <span></span><span></span><span></span>
+                    <span></span><span></span><span></span>
+                </div>
+            </div>
+            <div class="intro-text">
+                <h1 id="intro-site-name">Mafia Gaming Shop</h1>
+                <p class="tagline">Premium Gaming Topup Service</p>
+            </div>
+            <div class="loading-bar">
+                <div class="loading-progress"></div>
+            </div>
+            <p class="loading-text">Loading<span class="dots"></span></p>
+        </div>
+    </div>
+
+    <!-- Main App Container -->
+    <div id="main-app" class="main-app hidden">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-left">
+                <img id="header-logo" src="" alt="Logo" class="header-logo">
+                <span id="header-site-name" class="site-name">Mafia Gaming Shop</span>
+            </div>
+            <div class="header-right">
+                <div class="balance-display" id="balance-container">
+                    <div class="balance-info">
+                        <span class="balance-label">Balance</span>
+                        <span class="balance-amount" id="user-balance">0.00 MMK</span>
+                    </div>
+                    <button class="topup-btn" id="topup-btn">
+                        <i class="fas fa-plus"></i>
+                        <span>Topup</span>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- User Info Bar -->
+        <div class="user-info-bar">
+            <div class="user-avatar">
+                <img id="user-avatar" src="" alt="Avatar">
+                <span class="online-indicator"></span>
+            </div>
+            <div class="user-details">
+                <span class="user-name" id="user-name">Loading...</span>
+                <span class="user-status" id="user-status">
+                    <i class="fas fa-check-circle"></i> Connected
+                </span>
+            </div>
+            <div class="user-premium" id="premium-badge" style="display: none;">
+                <i class="fas fa-crown"></i>
+                <span>Premium</span>
+            </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <nav class="nav-tabs">
+            <button class="nav-tab active" data-tab="home">
+                <i class="fas fa-home"></i>
+                <span>Home</span>
+            </button>
+            <button class="nav-tab" data-tab="orders">
+                <i class="fas fa-shopping-bag"></i>
+                <span>Orders</span>
+            </button>
+            <button class="nav-tab" data-tab="history">
+                <i class="fas fa-history"></i>
+                <span>History</span>
+            </button>
+            <button class="nav-tab" data-tab="profile">
+                <i class="fas fa-user"></i>
+                <span>Profile</span>
+            </button>
+            <button class="nav-tab admin-tab" data-tab="admin" id="admin-tab" style="display: none;">
+                <i class="fas fa-cog"></i>
+                <span>Admin</span>
+            </button>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Home Tab -->
+            <section id="home-tab" class="tab-content active">
+                <!-- Banner Carousel -->
+                <div class="banner-section">
+                    <div class="banner-carousel" id="banner-carousel">
+                        <div class="banner-slides" id="banner-slides">
+                            <!-- Banners will be loaded dynamically -->
+                            <div class="banner-placeholder">
+                                <i class="fas fa-image"></i>
+                                <span>Loading Banners...</span>
+                            </div>
+                        </div>
+                        <div class="banner-indicators" id="banner-indicators"></div>
+                    </div>
+                </div>
+
+                <!-- Live Announcement Ticker -->
+                <div class="announcement-section">
+                    <div class="announcement-icon">
+                        <i class="fas fa-bullhorn"></i>
+                    </div>
+                    <div class="announcement-ticker">
+                        <div class="ticker-content" id="ticker-content">
+                            <span>Welcome to Mafia Gaming Shop! Best prices for UC & Diamonds!</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Categories Section -->
+                <div class="categories-section">
+                    <div class="section-header">
+                        <h2><i class="fas fa-gamepad"></i> Game Categories</h2>
+                    </div>
+                    <div class="categories-grid" id="categories-grid">
+                        <!-- Categories will be loaded dynamically -->
+                        <div class="category-skeleton">
+                            <div class="skeleton-icon"></div>
+                            <div class="skeleton-text"></div>
+                        </div>
+                        <div class="category-skeleton">
+                            <div class="skeleton-icon"></div>
+                            <div class="skeleton-text"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Featured Products -->
+                <div class="featured-section">
+                    <div class="section-header">
+                        <h2><i class="fas fa-fire"></i> Hot Deals</h2>
+                        <span class="view-all">View All</span>
+                    </div>
+                    <div class="featured-grid" id="featured-products">
+                        <!-- Featured products will be loaded dynamically -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- Category Products Page (Hidden by default) -->
+            <section id="category-page" class="tab-content category-page hidden">
+                <div class="category-header">
+                    <button class="back-btn" id="back-to-home">
+                        <i class="fas fa-arrow-left"></i>
+                    </button>
+                    <div class="category-info">
+                        <img id="category-icon" src="" alt="">
+                        <h2 id="category-name">Category Name</h2>
+                    </div>
+                </div>
+
+                <!-- Input Tables Section -->
+                <div class="input-tables-section" id="input-tables-container">
+                    <!-- Input tables will be loaded dynamically -->
+                </div>
+
+                <!-- Products Grid -->
+                <div class="products-grid" id="products-grid">
+                    <!-- Products will be loaded dynamically -->
+                </div>
+
+                <!-- Category Banner (Type 2) -->
+                <div class="category-banner-section" id="category-banner">
+                    <!-- Category specific banner and instructions -->
+                </div>
+            </section>
+
+            <!-- Orders Tab -->
+            <section id="orders-tab" class="tab-content">
+                <div class="page-header">
+                    <h2><i class="fas fa-shopping-bag"></i> My Orders</h2>
+                </div>
+                <div class="orders-filter">
+                    <button class="filter-btn active" data-filter="all">All</button>
+                    <button class="filter-btn" data-filter="pending">Pending</button>
+                    <button class="filter-btn" data-filter="approved">Approved</button>
+                    <button class="filter-btn" data-filter="rejected">Rejected</button>
+                </div>
+                <div class="orders-list" id="orders-list">
+                    <!-- Orders will be loaded dynamically -->
+                    <div class="empty-state">
+                        <i class="fas fa-box-open"></i>
+                        <p>No orders yet</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- History Tab -->
+            <section id="history-tab" class="tab-content">
+                <div class="page-header">
+                    <h2><i class="fas fa-history"></i> Transaction History</h2>
+                </div>
+                <div class="history-filter">
+                    <button class="filter-btn active" data-filter="all">All</button>
+                    <button class="filter-btn" data-filter="topup">Topup</button>
+                    <button class="filter-btn" data-filter="purchase">Purchase</button>
+                </div>
+                <div class="history-list" id="history-list">
+                    <!-- History will be loaded dynamically -->
+                    <div class="empty-state">
+                        <i class="fas fa-receipt"></i>
+                        <p>No transactions yet</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Profile Tab -->
+            <section id="profile-tab" class="tab-content">
+                <div class="profile-header">
+                    <div class="profile-avatar-large">
+                        <img id="profile-avatar" src="" alt="Profile">
+                        <div class="profile-premium-badge" id="profile-premium" style="display: none;">
+                            <i class="fas fa-crown"></i>
+                        </div>
+                    </div>
+                    <h2 id="profile-name">User Name</h2>
+                    <p id="profile-username">@username</p>
+                </div>
+
+                <div class="profile-stats">
+                    <div class="stat-card">
+                        <i class="fas fa-wallet"></i>
+                        <div class="stat-info">
+                            <span class="stat-value" id="stat-balance">0 MMK</span>
+                            <span class="stat-label">Balance</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <i class="fas fa-shopping-cart"></i>
+                        <div class="stat-info">
+                            <span class="stat-value" id="stat-orders">0</span>
+                            <span class="stat-label">Orders</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <i class="fas fa-check-circle"></i>
+                        <div class="stat-info">
+                            <span class="stat-value" id="stat-completed">0</span>
+                            <span class="stat-label">Completed</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="profile-menu">
+                    <div class="menu-item" id="menu-topup">
+                        <i class="fas fa-plus-circle"></i>
+                        <span>Topup Balance</span>
+                        <i class="fas fa-chevron-right"></i>
+                    </div>
+                    <div class="menu-item" id="menu-orders">
+                        <i class="fas fa-box"></i>
+                        <span>My Orders</span>
+                        <i class="fas fa-chevron-right"></i>
+                    </div>
+                    <div class="menu-item" id="menu-history">
+                        <i class="fas fa-history"></i>
+                        <span>Transaction History</span>
+                        <i class="fas fa-chevron-right"></i>
+                    </div>
+                    <div class="menu-item" id="menu-theme">
+                        <i class="fas fa-moon"></i>
+                        <span>Dark Mode</span>
+                        <div class="toggle-switch">
+                            <input type="checkbox" id="theme-toggle">
+                            <label for="theme-toggle"></label>
+                        </div>
+                    </div>
+                    <div class="menu-item" id="menu-support">
+                        <i class="fas fa-headset"></i>
+                        <span>Support</span>
+                        <i class="fas fa-chevron-right"></i>
+                    </div>
+                </div>
+
+                <div class="profile-footer">
+                    <p>Telegram ID: <span id="profile-tg-id">-</span></p>
+                    <p>Member since: <span id="profile-joined">-</span></p>
+                </div>
+            </section>
+        </main>
+
+        <!-- Topup Modal -->
+        <div class="modal" id="topup-modal">
+            <div class="modal-overlay"></div>
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3><i class="fas fa-wallet"></i> Topup Balance</h3>
+                    <button class="modal-close" id="close-topup-modal">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <!-- Payment Methods -->
+                    <div class="payment-methods" id="payment-methods">
+                        <!-- Payment methods will be loaded dynamically -->
+                    </div>
+
+                    <!-- Payment Form (Hidden initially) -->
+                    <div class="payment-form hidden" id="payment-form">
+                        <div class="selected-payment" id="selected-payment">
+                            <img src="" alt="" id="selected-payment-icon">
+                            <div class="payment-details">
+                                <h4 id="selected-payment-name">Payment Name</h4>
+                                <p id="selected-payment-address">Address</p>
+                                <p id="selected-payment-holder">Account Holder</p>
+                            </div>
+                            <button class="copy-btn" id="copy-address">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                        </div>
+                        <div class="payment-note" id="payment-note">
+                            <!-- Note will be displayed here -->
+                        </div>
+                        <div class="form-group">
+                            <label>Amount (MMK)</label>
+                            <input type="number" id="topup-amount" placeholder="Enter amount" min="1000">
+                        </div>
+                        <div class="form-group">
+                            <label>Upload Payment Screenshot</label>
+                            <div class="file-upload" id="file-upload">
+                                <input type="file" id="payment-screenshot" accept="image/*">
+                                <div class="file-upload-content">
+                                    <i class="fas fa-cloud-upload-alt"></i>
+                                    <p>Click or drag to upload</p>
+                                </div>
+                                <div class="file-preview hidden" id="file-preview">
+                                    <img src="" alt="" id="preview-image">
+                                    <button class="remove-file" id="remove-file">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <button class="submit-btn" id="submit-topup">
+                            <i class="fas fa-paper-plane"></i>
+                            Submit Topup Request
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Purchase Confirmation Modal -->
+        <div class="modal" id="purchase-modal">
+            <div class="modal-overlay"></div>
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3><i class="fas fa-shopping-cart"></i> Confirm Purchase</h3>
+                    <button class="modal-close" id="close-purchase-modal">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="purchase-product" id="purchase-product">
+                        <img src="" alt="" id="purchase-product-icon">
+                        <div class="product-info">
+                            <h4 id="purchase-product-name">Product Name</h4>
+                            <p id="purchase-product-amount">Amount</p>
+                        </div>
+                        <span class="product-price" id="purchase-product-price">0 MMK</span>
+                    </div>
+
+                    <div class="purchase-summary">
+                        <div class="summary-row">
+                            <span>Your Balance</span>
+                            <span id="purchase-balance">0 MMK</span>
+                        </div>
+                        <div class="summary-row">
+                            <span>Product Price</span>
+                            <span id="purchase-price">0 MMK</span>
+                        </div>
+                        <div class="summary-row total">
+                            <span>Remaining Balance</span>
+                            <span id="purchase-remaining">0 MMK</span>
+                        </div>
+                    </div>
+
+                    <div class="input-summary" id="input-summary">
+                        <!-- Input values summary will be shown here -->
+                    </div>
+
+                    <div class="verification-section" id="verification-section">
+                        <p class="verify-label">Enter your Telegram 2FA Password or OTP:</p>
+                        <div class="verify-input-group">
+                            <input type="password" id="verify-code" placeholder="Enter verification code">
+                            <button class="send-otp-btn" id="send-otp">
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <button class="submit-btn" id="confirm-purchase">
+                        <i class="fas fa-check"></i>
+                        Confirm Purchase
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toast Notifications -->
+        <div class="toast-container" id="toast-container"></div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/telegram-init.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/animations.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
