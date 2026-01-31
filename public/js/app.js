@@ -1,3 +1,4 @@
+import { Toast, Loading, Modal } from "@/components/ui/toast"
 /* ============================================
    MAFIA GAMING SHOP - USER DASHBOARD
    Version: 3.1.0 (Fixed - No Duplicates)
@@ -49,53 +50,68 @@ const Database = {
     initialized: false,
     
     async init() {
-        console.log('🗄️ Initializing Database...');
+        console.log('🗄️ Initializing Database via Vercel API...');
         
-        // First check if BIN_IDS are hardcoded in config
-        if (APP_CONFIG.JSONBIN.BIN_IDS.master) {
-            this.binIds = { ...APP_CONFIG.JSONBIN.BIN_IDS };
-            console.log('✅ Using hardcoded BIN IDs');
+        try {
+            // Fetch configuration from Vercel API
+            const response = await fetch('/api/config');
+            if (!response.ok) {
+                throw new Error(`Failed to fetch config: ${response.status}`);
+            }
+            
+            const config = await response.json();
+            this.binIds = config.binIds;
+            console.log('✅ Loaded BIN IDs from Vercel API');
             this.initialized = true;
             return true;
-        }
-        
-        // Try localStorage (shared from admin panel)
-        const savedBinIds = localStorage.getItem('mafia_jsonbin_ids');
-        if (savedBinIds) {
-            try {
-                this.binIds = JSON.parse(savedBinIds);
-                console.log('✅ Loaded BIN IDs from localStorage');
+            
+        } catch (error) {
+            console.warn('⚠️ Could not load config from API:', error.message);
+            
+            // Fallback: Check hardcoded BIN_IDS
+            if (APP_CONFIG.JSONBIN.BIN_IDS.master) {
+                this.binIds = { ...APP_CONFIG.JSONBIN.BIN_IDS };
+                console.log('✅ Using hardcoded BIN IDs');
                 this.initialized = true;
                 return true;
-            } catch (e) {
-                console.error('Parse error:', e);
             }
+            
+            // Final fallback: Try localStorage
+            const savedBinIds = localStorage.getItem('mafia_jsonbin_ids');
+            if (savedBinIds) {
+                try {
+                    this.binIds = JSON.parse(savedBinIds);
+                    console.log('✅ Loaded BIN IDs from localStorage');
+                    this.initialized = true;
+                    return true;
+                } catch (e) {
+                    console.error('Parse error:', e);
+                }
+            }
+            
+            console.error('❌ No database configuration found');
+            return false;
         }
-        
-        console.warn('⚠️ No database configuration found');
-        console.warn('Please open Admin Panel first to create database');
-        return false;
     },
     
     async read(binType) {
-        const binId = this.binIds[binType];
-        
-        if (!binId) {
+        if (!this.binIds || !this.binIds[binType]) {
             console.warn(`Bin not found: ${binType}`);
             return this.getDefault(binType);
         }
         
+        const binId = this.binIds[binType];
+        
         try {
-            const response = await fetch(`${APP_CONFIG.JSONBIN.BASE_URL}/b/${binId}/latest`, {
-                headers: {
-                    'X-Master-Key': APP_CONFIG.JSONBIN.MASTER_KEY
-                }
-            });
+            // Use Vercel API route
+            const response = await fetch(`/api/products?binId=${binId}`);
             
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            if (!response.ok) {
+                throw new Error(`API Error: ${response.status}`);
+            }
             
             const data = await response.json();
-            return data.record;
+            return data || this.getDefault(binType);
             
         } catch (error) {
             console.error(`Read error (${binType}):`, error);
@@ -104,21 +120,29 @@ const Database = {
     },
     
     async write(binType, data) {
-        const binId = this.binIds[binType];
-        
-        if (!binId) {
+        if (!this.binIds || !this.binIds[binType]) {
             console.error(`Bin not found: ${binType}`);
             return false;
         }
         
+        const binId = this.binIds[binType];
+        
         try {
-            const response = await fetch(`${APP_CONFIG.JSONBIN.BASE_URL}/b/${binId}`, {
-                method: 'PUT',
+            // Use Vercel API route
+            let endpoint = '/api/products';
+            if (binType === 'categories') endpoint = '/api/categories';
+            else if (binType === 'orders') endpoint = '/api/orders';
+            else if (binType === 'users') endpoint = '/api/users';
+            
+            const response = await fetch(endpoint, {
+                method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'X-Master-Key': APP_CONFIG.JSONBIN.MASTER_KEY
+                    'Content-Type': 'application/json'
                 },
-                body: JSON.stringify(data)
+                body: JSON.stringify({
+                    binId: binId,
+                    products: data
+                })
             });
             
             return response.ok;
