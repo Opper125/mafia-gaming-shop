@@ -23,19 +23,19 @@ const APP_CONFIG = {
         // ⚠️ IMPORTANT: Admin Panel ကဖန်တီးပြီးရင် ဒီ BIN_IDS တွေကို ထည့်ပါ
         // Admin Panel Console မှာ ပြပေးပါလိမ့်မယ်
         BIN_IDS: {
-            master: '',           // Admin Panel ကပေးတဲ့ ID ထည့်ပါ
-            users: '',
-            categories: '',
-            products: '',
-            orders: '',
-            topupRequests: '',
-            payments: '',
-            bannersType1: '',
-            bannersType2: '',
-            inputTables: '',
-            bannedUsers: '',
+            master: '697d9cf143b1c97be959d4eb',           // Admin Panel ကပေးတဲ့ ID ထည့်ပါ
+            users: '697d278fae596e708f049d8e',
+            categories: '697d279043b1c97be958c4d8',
+            products: '697d2790d0ea881f409431c2',
+            orders: '697d2791ae596e708f049d94',
+            topupRequests: '697cf884ae596e708f04323a',
+            payments: '697d272943b1c97be958c3e9',
+            bannersType1: '697d2791d0ea881f409431c6',
+            bannersType2: '697d275343b1c97be958c445',
+            inputTables: '697cf88643b1c97be9585957',
+            bannedUsers: '697d2793d0ea881f409431cf',
             broadcasts: '',
-            settings: ''
+            settings: '697d9b1443b1c97be959d141'
         }
     }
 };
