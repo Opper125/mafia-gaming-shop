@@ -1,14 +1,283 @@
 /* ============================================
    MAFIA GAMING SHOP - ADMIN PANEL
-   Version: 2.0.1 (Fixed Duplicate Error)
+   Version: 3.0.0 (JSONBin Integration)
    ============================================ */
 
 // ============================================
 // Configuration
 // ============================================
 
-const ADMIN_ID = 1538232799;
-const ADMIN_ID_STR = '1538232799';
+const CONFIG = {
+    ADMIN_ID: 1538232799,
+    ADMIN_ID_STR: '1538232799',
+    BOT_TOKEN: '8506121473:AAE6LXKDj6J8GR9HKYNzkq47EVa7tV8BBUM',
+    BOT_USERNAME: 'mafia_gamingshopbot',
+    
+    // JSONBin.io Configuration
+    JSONBIN: {
+        BASE_URL: 'https://api.jsonbin.io/v3',
+        MASTER_KEY: '$2a$10$nweVi.eOGDsyC7uEsN/OxeLcIr8uhyN8x86AiIo8koJ.B7MX1I5Bu',
+        ACCESS_KEY: '$2a$10$tNEyDbr/ez8kUETcZBK.6OwFCcaAE4bjDV8EHQtjz3jbgjs8jqbrS'
+    }
+};
+
+// ============================================
+// JSONBin Database Service
+// ============================================
+
+const JSONBinDB = {
+    binIds: {},
+    initialized: false,
+    
+    // Default data structures
+    defaultData: {
+        users: [],
+        categories: [],
+        products: [],
+        orders: [],
+        topupRequests: [],
+        payments: [],
+        bannersType1: [],
+        bannersType2: [],
+        inputTables: [],
+        bannedUsers: [],
+        broadcasts: [],
+        settings: {
+            siteName: 'Mafia Gaming Shop',
+            logo: '',
+            theme: 'dark',
+            announcement: 'Welcome to Mafia Gaming Shop! 🎮 Best prices for UC & Diamonds!',
+            minTopup: 1000,
+            maxTopup: 1000000
+        }
+    },
+    
+    // Initialize database
+    async init() {
+        console.log('🗄️ Initializing JSONBin Database...');
+        
+        try {
+            // Try to load existing bin IDs from localStorage
+            const savedBinIds = localStorage.getItem('mafia_jsonbin_ids');
+            
+            if (savedBinIds) {
+                this.binIds = JSON.parse(savedBinIds);
+                console.log('✅ Loaded existing bin IDs:', this.binIds);
+                
+                // Verify master bin still exists
+                const verified = await this.verifyMasterBin();
+                if (verified) {
+                    this.initialized = true;
+                    return true;
+                }
+            }
+            
+            // Create new bins if not exists
+            console.log('📦 Creating new database bins...');
+            await this.createAllBins();
+            
+            this.initialized = true;
+            console.log('✅ JSONBin Database initialized successfully!');
+            return true;
+            
+        } catch (error) {
+            console.error('❌ JSONBin init error:', error);
+            Toast.error('Database Error', 'Failed to initialize database. Using local storage.');
+            return false;
+        }
+    },
+    
+    // Verify master bin exists
+    async verifyMasterBin() {
+        if (!this.binIds.master) return false;
+        
+        try {
+            const response = await fetch(`${CONFIG.JSONBIN.BASE_URL}/b/${this.binIds.master}/latest`, {
+                headers: {
+                    'X-Master-Key': CONFIG.JSONBIN.MASTER_KEY
+                }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                if (data.record && data.record.binIds) {
+                    this.binIds = { master: this.binIds.master, ...data.record.binIds };
+                    this.saveBinIdsToLocal();
+                    return true;
+                }
+            }
+            return false;
+        } catch (error) {
+            console.error('Verify master bin error:', error);
+            return false;
+        }
+    },
+    
+    // Create all necessary bins
+    async createAllBins() {
+        const binTypes = [
+            'users', 'categories', 'products', 'orders', 
+            'topupRequests', 'payments', 'bannersType1', 
+            'bannersType2', 'inputTables', 'bannedUsers', 
+            'broadcasts', 'settings'
+        ];
+        
+        Loading.show('Creating database... 0%');
+        
+        const createdBins = {};
+        
+        for (let i = 0; i < binTypes.length; i++) {
+            const type = binTypes[i];
+            const progress = Math.round(((i + 1) / binTypes.length) * 100);
+            Loading.show(`Creating ${type}... ${progress}%`);
+            
+            try {
+                const binId = await this.createBin(type, this.defaultData[type]);
+                createdBins[type] = binId;
+                console.log(`✅ Created bin: ${type} = ${binId}`);
+            } catch (error) {
+                console.error(`❌ Failed to create bin: ${type}`, error);
+            }
+            
+            // Small delay to avoid rate limiting
+            await this.delay(300);
+        }
+        
+        // Create master bin to store all bin IDs
+        Loading.show('Finalizing database...');
+        
+        const masterBinId = await this.createBin('master', {
+            binIds: createdBins,
+            createdAt: new Date().toISOString(),
+            version: '3.0.0'
+        });
+        
+        this.binIds = { master: masterBinId, ...createdBins };
+        this.saveBinIdsToLocal();
+        
+        Loading.hide();
+        Toast.success('Database Created', 'All database bins created successfully!');
+        
+        return true;
+    },
+    
+    // Create a single bin
+    async createBin(name, data) {
+        const response = await fetch(`${CONFIG.JSONBIN.BASE_URL}/b`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Master-Key': CONFIG.JSONBIN.MASTER_KEY,
+                'X-Bin-Name': `mafia-gaming-${name}`,
+                'X-Bin-Private': 'false'
+            },
+            body: JSON.stringify(data)
+        });
+        
+        if (!response.ok) {
+            const error = await response.text();
+            throw new Error(`Failed to create bin ${name}: ${error}`);
+        }
+        
+        const result = await response.json();
+        return result.metadata.id;
+    },
+    
+    // Read data from bin
+    async read(binType) {
+        const binId = this.binIds[binType];
+        
+        if (!binId) {
+            console.warn(`Bin ID not found for: ${binType}`);
+            return this.defaultData[binType] || null;
+        }
+        
+        try {
+            const response = await fetch(`${CONFIG.JSONBIN.BASE_URL}/b/${binId}/latest`, {
+                headers: {
+                    'X-Master-Key': CONFIG.JSONBIN.MASTER_KEY
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            
+            const data = await response.json();
+            return data.record;
+            
+        } catch (error) {
+            console.error(`Read error for ${binType}:`, error);
+            
+            // Fallback to localStorage
+            const localData = localStorage.getItem(`mafia_${binType}`);
+            return localData ? JSON.parse(localData) : this.defaultData[binType];
+        }
+    },
+    
+    // Write data to bin
+    async write(binType, data) {
+        const binId = this.binIds[binType];
+        
+        if (!binId) {
+            console.error(`Bin ID not found for: ${binType}`);
+            // Save to localStorage as fallback
+            localStorage.setItem(`mafia_${binType}`, JSON.stringify(data));
+            return false;
+        }
+        
+        try {
+            const response = await fetch(`${CONFIG.JSONBIN.BASE_URL}/b/${binId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Master-Key': CONFIG.JSONBIN.MASTER_KEY
+                },
+                body: JSON.stringify(data)
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            
+            // Also save to localStorage for faster access
+            localStorage.setItem(`mafia_${binType}`, JSON.stringify(data));
+            
+            return true;
+            
+        } catch (error) {
+            console.error(`Write error for ${binType}:`, error);
+            
+            // Save to localStorage as fallback
+            localStorage.setItem(`mafia_${binType}`, JSON.stringify(data));
+            return false;
+        }
+    },
+    
+    // Save bin IDs to localStorage
+    saveBinIdsToLocal() {
+        localStorage.setItem('mafia_jsonbin_ids', JSON.stringify(this.binIds));
+    },
+    
+    // Utility delay function
+    delay(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    },
+    
+    // Get all bin IDs (for sharing with user dashboard)
+    getBinIds() {
+        return this.binIds;
+    },
+    
+    // Export database config for user dashboard
+    exportConfig() {
+        return {
+            JSONBIN_BASE_URL: CONFIG.JSONBIN.BASE_URL,
+            JSONBIN_ACCESS_KEY: CONFIG.JSONBIN.ACCESS_KEY,
+            BIN_IDS: this.binIds
+        };
+    }
+};
 
 // ============================================
 // Admin State
@@ -20,7 +289,7 @@ const AdminState = {
     initialized: false,
     currentPage: 'dashboard',
     
-    // Data
+    // Data (will be loaded from JSONBin)
     users: [],
     orders: [],
     topupRequests: [],
@@ -31,6 +300,7 @@ const AdminState = {
     bannersType2: [],
     inputTables: [],
     bannedUsers: [],
+    broadcasts: [],
     settings: {
         siteName: 'Mafia Gaming Shop',
         logo: '',
@@ -48,56 +318,6 @@ const AdminState = {
         pendingTopups: 0
     }
 };
-
-// ============================================
-// Admin Storage Helper (with prefix)
-// Using different name to avoid conflict with utils.js
-// ============================================
-
-const AdminStorage = {
-    prefix: 'mafia_',
-    
-    set(key, value) {
-        try {
-            localStorage.setItem(this.prefix + key, JSON.stringify(value));
-            return true;
-        } catch (e) {
-            console.error('Storage set error:', e);
-            return false;
-        }
-    },
-    
-    get(key, defaultValue = null) {
-        try {
-            const item = localStorage.getItem(this.prefix + key);
-            return item ? JSON.parse(item) : defaultValue;
-        } catch (e) {
-            console.error('Storage get error:', e);
-            return defaultValue;
-        }
-    },
-    
-    remove(key) {
-        try {
-            localStorage.removeItem(this.prefix + key);
-        } catch (e) {
-            console.error('Storage remove error:', e);
-        }
-    }
-};
-
-// ============================================
-// Use Toast, Loading, Modal, Format, FileUpload from utils.js
-// They are already loaded before admin.js
-// ============================================
-
-// Initialize Toast if not already done
-if (typeof Toast !== 'undefined' && Toast.init) {
-    // Toast is available from utils.js
-    console.log('✅ Using Toast from utils.js');
-} else {
-    console.warn('⚠️ Toast not found in utils.js');
-}
 
 // ============================================
 // Admin Panel Class
@@ -129,7 +349,6 @@ class AdminPanel {
             tg.expand();
             
             console.log('✅ Telegram WebApp ready');
-            console.log('📱 initDataUnsafe:', tg.initDataUnsafe);
             
             // Step 3: Get user
             const user = tg.initDataUnsafe?.user;
@@ -141,14 +360,13 @@ class AdminPanel {
             }
             
             AdminState.user = user;
-            console.log('👤 User:', user);
-            console.log('👤 User ID:', user.id, 'Type:', typeof user.id);
+            console.log('👤 User ID:', user.id);
             
             // Step 4: Check if admin
             const userId = user.id;
-            const isAdmin = (userId === ADMIN_ID) || (userId === ADMIN_ID_STR) || (String(userId) === ADMIN_ID_STR);
-            
-            console.log(`🔐 Admin check: userId=${userId}, ADMIN_ID=${ADMIN_ID}, isAdmin=${isAdmin}`);
+            const isAdmin = (userId === CONFIG.ADMIN_ID) || 
+                           (userId === CONFIG.ADMIN_ID_STR) || 
+                           (String(userId) === CONFIG.ADMIN_ID_STR);
             
             if (!isAdmin) {
                 console.error('❌ Not admin');
@@ -159,23 +377,27 @@ class AdminPanel {
             AdminState.isAdmin = true;
             console.log('✅ Admin verified!');
             
-            // Step 5: Skip 2FA verification and show admin panel directly
+            // Step 5: Initialize JSONBin Database
+            Loading.show('Connecting to database...');
+            await JSONBinDB.init();
+            
+            // Step 6: Show admin panel
             await this.showAdminPanel();
             
         } catch (error) {
             console.error('❌ Init error:', error);
+            Loading.hide();
             this.showAccessDenied('Initialization failed: ' + error.message);
         }
     }
 
     showAccessDenied(message = '') {
         console.log('🚫 Showing access denied:', message);
+        Loading.hide();
         
-        // Hide all screens
         document.getElementById('admin-verify-screen')?.classList.add('hidden');
         document.getElementById('admin-panel')?.classList.add('hidden');
         
-        // Show access denied
         const screen = document.getElementById('admin-access-denied');
         if (screen) {
             screen.classList.remove('hidden');
@@ -189,11 +411,9 @@ class AdminPanel {
     async showAdminPanel() {
         console.log('📊 Showing admin panel...');
         
-        // Hide other screens
         document.getElementById('admin-access-denied')?.classList.add('hidden');
         document.getElementById('admin-verify-screen')?.classList.add('hidden');
         
-        // Show admin panel
         const panel = document.getElementById('admin-panel');
         if (panel) {
             panel.classList.remove('hidden');
@@ -202,7 +422,7 @@ class AdminPanel {
         // Update admin info
         this.updateAdminInfo();
         
-        // Load data
+        // Load data from JSONBin
         await this.loadAllData();
         
         // Setup event listeners
@@ -211,8 +431,14 @@ class AdminPanel {
         // Load dashboard
         this.loadDashboard();
         
+        // Show database info
+        this.showDatabaseInfo();
+        
         AdminState.initialized = true;
+        Loading.hide();
+        
         console.log('✅ Admin panel ready!');
+        Toast.success('Welcome!', 'Admin Panel loaded successfully');
     }
 
     updateAdminInfo() {
@@ -221,7 +447,6 @@ class AdminPanel {
         
         const fullName = [user.first_name, user.last_name].filter(Boolean).join(' ') || 'Admin';
         
-        // Update header
         const nameEl = document.getElementById('admin-name');
         if (nameEl) nameEl.textContent = fullName;
         
@@ -230,7 +455,6 @@ class AdminPanel {
             avatarEl.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=8B5CF6&color=fff&size=128`;
         }
         
-        // Update sidebar
         const sidebarLogo = document.getElementById('sidebar-logo');
         if (sidebarLogo) {
             sidebarLogo.src = AdminState.settings.logo || `https://ui-avatars.com/api/?name=MG&background=8B5CF6&color=fff&size=128`;
@@ -241,30 +465,80 @@ class AdminPanel {
     }
 
     async loadAllData() {
-        console.log('📦 Loading all data...');
+        console.log('📦 Loading all data from JSONBin...');
+        Loading.show('Loading data...');
         
-        // Load from localStorage using AdminStorage (with prefix)
-        AdminState.users = AdminStorage.get('users', []);
-        AdminState.orders = AdminStorage.get('orders', []);
-        AdminState.topupRequests = AdminStorage.get('topupRequests', []);
-        AdminState.categories = AdminStorage.get('categories', []);
-        AdminState.products = AdminStorage.get('products', []);
-        AdminState.payments = AdminStorage.get('payments', []);
-        AdminState.bannersType1 = AdminStorage.get('bannersType1', []);
-        AdminState.bannersType2 = AdminStorage.get('bannersType2', []);
-        AdminState.inputTables = AdminStorage.get('inputTables', []);
-        AdminState.bannedUsers = AdminStorage.get('bannedUsers', []);
-        AdminState.settings = AdminStorage.get('settings', AdminState.settings);
+        try {
+            // Load all data from JSONBin
+            const [
+                users, categories, products, orders, topupRequests,
+                payments, bannersType1, bannersType2, inputTables,
+                bannedUsers, broadcasts, settings
+            ] = await Promise.all([
+                JSONBinDB.read('users'),
+                JSONBinDB.read('categories'),
+                JSONBinDB.read('products'),
+                JSONBinDB.read('orders'),
+                JSONBinDB.read('topupRequests'),
+                JSONBinDB.read('payments'),
+                JSONBinDB.read('bannersType1'),
+                JSONBinDB.read('bannersType2'),
+                JSONBinDB.read('inputTables'),
+                JSONBinDB.read('bannedUsers'),
+                JSONBinDB.read('broadcasts'),
+                JSONBinDB.read('settings')
+            ]);
+            
+            AdminState.users = users || [];
+            AdminState.categories = categories || [];
+            AdminState.products = products || [];
+            AdminState.orders = orders || [];
+            AdminState.topupRequests = topupRequests || [];
+            AdminState.payments = payments || [];
+            AdminState.bannersType1 = bannersType1 || [];
+            AdminState.bannersType2 = bannersType2 || [];
+            AdminState.inputTables = inputTables || [];
+            AdminState.bannedUsers = bannedUsers || [];
+            AdminState.broadcasts = broadcasts || [];
+            AdminState.settings = settings || JSONBinDB.defaultData.settings;
+            
+            this.calculateStats();
+            
+            console.log('✅ Data loaded:', {
+                users: AdminState.users.length,
+                categories: AdminState.categories.length,
+                products: AdminState.products.length,
+                orders: AdminState.orders.length
+            });
+            
+        } catch (error) {
+            console.error('❌ Error loading data:', error);
+            Toast.error('Load Error', 'Some data could not be loaded');
+        }
         
-        // Calculate stats
-        this.calculateStats();
+        Loading.hide();
+    }
+
+    // Save specific data type to JSONBin
+    async saveData(dataType) {
+        console.log(`💾 Saving ${dataType} to JSONBin...`);
         
-        console.log('✅ Data loaded:', {
-            users: AdminState.users.length,
-            orders: AdminState.orders.length,
-            categories: AdminState.categories.length,
-            products: AdminState.products.length
-        });
+        const success = await JSONBinDB.write(dataType, AdminState[dataType]);
+        
+        if (success) {
+            console.log(`✅ ${dataType} saved successfully`);
+        } else {
+            console.warn(`⚠️ ${dataType} saved to localStorage (JSONBin failed)`);
+        }
+        
+        return success;
+    }
+
+    showDatabaseInfo() {
+        // Show database connection info in console
+        console.log('📊 Database Info:');
+        console.log('Bin IDs:', JSONBinDB.getBinIds());
+        console.log('Export Config for User Dashboard:', JSONBinDB.exportConfig());
     }
 
     calculateStats() {
@@ -281,7 +555,6 @@ class AdminPanel {
             pendingTopups: topups.filter(t => t.status === 'pending').length
         };
         
-        // Update sidebar badges
         this.updateBadge('users-count', AdminState.stats.totalUsers);
         this.updateBadge('pending-orders', AdminState.stats.pendingOrders);
         this.updateBadge('pending-topups', AdminState.stats.pendingTopups);
@@ -300,11 +573,8 @@ class AdminPanel {
         console.log('🎯 Setting up event listeners...');
         
         // Menu toggle
-        const menuToggle = document.getElementById('menu-toggle');
-        const sidebar = document.getElementById('admin-sidebar');
-        
-        menuToggle?.addEventListener('click', () => {
-            sidebar?.classList.toggle('active');
+        document.getElementById('menu-toggle')?.addEventListener('click', () => {
+            document.getElementById('admin-sidebar')?.classList.toggle('active');
         });
         
         // Navigation links
@@ -333,82 +603,44 @@ class AdminPanel {
         // Quick actions
         document.querySelectorAll('.action-btn').forEach(btn => {
             btn.addEventListener('click', () => {
-                const action = btn.dataset.action;
-                this.handleQuickAction(action);
+                this.handleQuickAction(btn.dataset.action);
             });
         });
         
-        // Modal close buttons
+        // Modal close
         document.querySelectorAll('.modal-close').forEach(btn => {
-            btn.addEventListener('click', () => {
-                if (typeof Modal !== 'undefined') {
-                    Modal.closeAll();
-                }
-            });
+            btn.addEventListener('click', () => Modal.closeAll());
         });
         
-        // Modal overlays
         document.querySelectorAll('.modal-overlay').forEach(overlay => {
-            overlay.addEventListener('click', () => {
-                if (typeof Modal !== 'undefined') {
-                    Modal.closeAll();
-                }
-            });
+            overlay.addEventListener('click', () => Modal.closeAll());
         });
         
-        // Setup all forms
+        // Setup forms
         this.setupForms();
-        
-        // Setup file uploads
         this.setupFileUploads();
-        
-        // Add buttons
         this.setupAddButtons();
-        
-        // Banner tabs
         this.setupBannerTabs();
-        
-        // User modal tabs
         this.setupUserModalTabs();
-        
-        // Order & Topup actions
         this.setupOrderActions();
         this.setupTopupActions();
         this.setupUserActions();
     }
 
     setupForms() {
-        // Category form
         document.getElementById('category-form')?.addEventListener('submit', (e) => this.saveCategory(e));
-        
-        // Product form
         document.getElementById('product-form')?.addEventListener('submit', (e) => this.saveProduct(e));
-        
-        // Payment form
         document.getElementById('payment-form')?.addEventListener('submit', (e) => this.savePayment(e));
-        
-        // Banner form
         document.getElementById('banner-form')?.addEventListener('submit', (e) => this.saveBanner(e));
-        
-        // Input table form
         document.getElementById('input-table-form')?.addEventListener('submit', (e) => this.saveInputTable(e));
-        
-        // Announcement form
         document.getElementById('announcement-form')?.addEventListener('submit', (e) => this.saveAnnouncement(e));
-        
-        // Broadcast form
         document.getElementById('broadcast-form')?.addEventListener('submit', (e) => this.sendBroadcast(e));
-        
-        // Settings form
         document.getElementById('settings-form')?.addEventListener('submit', (e) => this.saveSettings(e));
         
-        // Discount checkbox
         document.getElementById('product-has-discount')?.addEventListener('change', (e) => {
-            const fields = document.getElementById('discount-fields');
-            if (fields) fields.classList.toggle('hidden', !e.target.checked);
+            document.getElementById('discount-fields')?.classList.toggle('hidden', !e.target.checked);
         });
         
-        // Discount calculation
         ['product-price', 'product-discount'].forEach(id => {
             document.getElementById(id)?.addEventListener('input', () => this.calculateDiscountedPrice());
         });
@@ -425,34 +657,18 @@ class AdminPanel {
         ];
         
         uploads.forEach(({ input, preview, img, content }) => {
-            const inputEl = document.getElementById(input);
-            const previewEl = document.getElementById(preview);
-            const imgEl = document.getElementById(img);
-            const contentEl = document.querySelector(content);
-            
-            inputEl?.addEventListener('change', async (e) => {
+            document.getElementById(input)?.addEventListener('change', async (e) => {
                 const file = e.target.files[0];
                 if (file) {
-                    try {
-                        // Use FileUpload from utils.js if available
-                        let base64;
-                        if (typeof FileUpload !== 'undefined' && FileUpload.toBase64) {
-                            base64 = await FileUpload.toBase64(file);
-                        } else {
-                            // Fallback
-                            base64 = await this.fileToBase64(file);
-                        }
-                        if (imgEl) imgEl.src = base64;
-                        previewEl?.classList.remove('hidden');
-                        contentEl?.classList.add('hidden');
-                    } catch (err) {
-                        console.error('File upload error:', err);
-                    }
+                    const base64 = await this.fileToBase64(file);
+                    const imgEl = document.getElementById(img);
+                    if (imgEl) imgEl.src = base64;
+                    document.getElementById(preview)?.classList.remove('hidden');
+                    document.querySelector(content)?.classList.add('hidden');
                 }
             });
         });
         
-        // Remove file buttons
         document.querySelectorAll('.remove-file').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.preventDefault();
@@ -460,17 +676,14 @@ class AdminPanel {
                 const container = btn.closest('.file-upload');
                 if (container) {
                     const input = container.querySelector('input[type="file"]');
-                    const preview = container.querySelector('.file-preview');
-                    const content = container.querySelector('.file-upload-content');
                     if (input) input.value = '';
-                    preview?.classList.add('hidden');
-                    content?.classList.remove('hidden');
+                    container.querySelector('.file-preview')?.classList.add('hidden');
+                    container.querySelector('.file-upload-content')?.classList.remove('hidden');
                 }
             });
         });
     }
 
-    // Fallback file to base64 converter
     fileToBase64(file) {
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
@@ -509,8 +722,7 @@ class AdminPanel {
                 btn.classList.add('active');
                 
                 document.querySelectorAll('#user-details-modal .user-tab-content').forEach(c => c.classList.add('hidden'));
-                const tabContent = document.getElementById(`${btn.dataset.tab}-tab`);
-                tabContent?.classList.remove('hidden');
+                document.getElementById(`${btn.dataset.tab}-tab`)?.classList.remove('hidden');
             });
         });
     }
@@ -518,26 +730,20 @@ class AdminPanel {
     setupOrderActions() {
         document.getElementById('approve-order-btn')?.addEventListener('click', () => this.approveOrder());
         document.getElementById('reject-order-btn')?.addEventListener('click', () => this.rejectOrder());
-        document.getElementById('close-order-modal')?.addEventListener('click', () => {
-            if (typeof Modal !== 'undefined') Modal.close('order-details-modal');
-        });
+        document.getElementById('close-order-modal')?.addEventListener('click', () => Modal.close('order-details-modal'));
     }
 
     setupTopupActions() {
         document.getElementById('approve-topup-btn')?.addEventListener('click', () => this.approveTopup());
         document.getElementById('reject-topup-btn')?.addEventListener('click', () => this.rejectTopup());
-        document.getElementById('close-topup-request-modal')?.addEventListener('click', () => {
-            if (typeof Modal !== 'undefined') Modal.close('topup-request-modal');
-        });
+        document.getElementById('close-topup-request-modal')?.addEventListener('click', () => Modal.close('topup-request-modal'));
     }
 
     setupUserActions() {
         document.getElementById('add-balance-btn')?.addEventListener('click', () => this.adjustBalance('add'));
         document.getElementById('deduct-balance-btn')?.addEventListener('click', () => this.adjustBalance('deduct'));
         document.getElementById('ban-user-btn')?.addEventListener('click', () => this.banCurrentUser());
-        document.getElementById('close-user-modal')?.addEventListener('click', () => {
-            if (typeof Modal !== 'undefined') Modal.close('user-details-modal');
-        });
+        document.getElementById('close-user-modal')?.addEventListener('click', () => Modal.close('user-details-modal'));
     }
 
     // ============================================
@@ -547,80 +753,79 @@ class AdminPanel {
     navigateTo(page) {
         console.log('📍 Navigate to:', page);
         
-        // Update nav links
         document.querySelectorAll('.nav-link').forEach(link => {
             link.classList.toggle('active', link.dataset.page === page);
         });
         
-        // Update pages
         document.querySelectorAll('.admin-page').forEach(p => {
             p.classList.toggle('active', p.id === `page-${page}`);
         });
         
-        // Close sidebar on mobile
         document.getElementById('admin-sidebar')?.classList.remove('active');
-        
         AdminState.currentPage = page;
-        
-        // Load page content
         this.loadPageContent(page);
     }
 
     loadPageContent(page) {
-        switch (page) {
-            case 'dashboard': this.loadDashboard(); break;
-            case 'users': this.loadUsers(); break;
-            case 'orders': this.loadOrders(); break;
-            case 'topup-requests': this.loadTopupRequests(); break;
-            case 'banners': this.loadBanners(); break;
-            case 'categories': this.loadCategories(); break;
-            case 'products': this.loadProducts(); break;
-            case 'input-tables': this.loadInputTables(); break;
-            case 'payments': this.loadPayments(); break;
-            case 'announcements': this.loadAnnouncements(); break;
-            case 'broadcast': this.loadBroadcast(); break;
-            case 'banned-users': this.loadBannedUsers(); break;
-            case 'settings': this.loadSettings(); break;
-        }
+        const loaders = {
+            'dashboard': () => this.loadDashboard(),
+            'users': () => this.loadUsers(),
+            'orders': () => this.loadOrders(),
+            'topup-requests': () => this.loadTopupRequests(),
+            'banners': () => this.loadBanners(),
+            'categories': () => this.loadCategories(),
+            'products': () => this.loadProducts(),
+            'input-tables': () => this.loadInputTables(),
+            'payments': () => this.loadPayments(),
+            'announcements': () => this.loadAnnouncements(),
+            'broadcast': () => this.loadBroadcast(),
+            'banned-users': () => this.loadBannedUsers(),
+            'settings': () => this.loadSettingsPage()
+        };
+        
+        if (loaders[page]) loaders[page]();
     }
 
     handleQuickAction(action) {
-        switch (action) {
-            case 'add-category':
-                this.navigateTo('categories');
-                setTimeout(() => this.openCategoryModal(), 100);
-                break;
-            case 'add-product':
-                this.navigateTo('products');
-                setTimeout(() => this.openProductModal(), 100);
-                break;
-            case 'add-banner':
-                this.navigateTo('banners');
-                break;
-            case 'broadcast':
-                this.navigateTo('broadcast');
-                break;
-        }
+        const actions = {
+            'add-category': () => { this.navigateTo('categories'); setTimeout(() => this.openCategoryModal(), 100); },
+            'add-product': () => { this.navigateTo('products'); setTimeout(() => this.openProductModal(), 100); },
+            'add-banner': () => this.navigateTo('banners'),
+            'broadcast': () => this.navigateTo('broadcast')
+        };
+        
+        if (actions[action]) actions[action]();
     }
 
     // ============================================
-    // Helper method to format currency
-    // Uses Format from utils.js if available
+    // Format Helpers
     // ============================================
-    
+
     formatCurrency(amount, currency = 'MMK') {
-        if (typeof Format !== 'undefined' && Format.currency) {
-            return Format.currency(amount, currency);
-        }
         return `${Number(amount || 0).toLocaleString()} ${currency}`;
     }
 
     formatDate(dateStr, type = 'short') {
-        if (typeof Format !== 'undefined' && Format.date) {
-            return Format.date(dateStr, type);
-        }
         if (!dateStr) return '-';
         const d = new Date(dateStr);
+        
+        if (type === 'relative') {
+            const now = new Date();
+            const diff = now - d;
+            const mins = Math.floor(diff / 60000);
+            const hours = Math.floor(diff / 3600000);
+            const days = Math.floor(diff / 86400000);
+            
+            if (mins < 1) return 'Just now';
+            if (mins < 60) return `${mins}m ago`;
+            if (hours < 24) return `${hours}h ago`;
+            if (days < 7) return `${days}d ago`;
+        }
+        
+        if (type === 'datetime') {
+            return d.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        }
+        
         return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     }
 
@@ -631,7 +836,6 @@ class AdminPanel {
     loadDashboard() {
         console.log('📊 Loading dashboard...');
         
-        // Update stats
         document.getElementById('total-users').textContent = AdminState.stats.totalUsers;
         document.getElementById('total-orders').textContent = AdminState.stats.totalOrders;
         document.getElementById('approved-orders').textContent = AdminState.stats.approvedOrders;
@@ -679,437 +883,7 @@ class AdminPanel {
     }
 
     // ============================================
-    // Users
-    // ============================================
-
-    loadUsers() {
-        const tbody = document.getElementById('users-tbody');
-        if (!tbody) return;
-        
-        const users = AdminState.users;
-        
-        if (users.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted p-lg">No users yet</td></tr>';
-            return;
-        }
-        
-        tbody.innerHTML = users.map(user => `
-            <tr data-user-id="${user.id}">
-                <td>
-                    <div class="user-cell">
-                        <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(user.firstName || 'U')}&background=8B5CF6&color=fff" alt="">
-                        <div class="user-info">
-                            <span class="name">${user.firstName || ''} ${user.lastName || ''}</span>
-                            <span class="username">@${user.username || 'N/A'}</span>
-                        </div>
-                    </div>
-                </td>
-                <td>${user.id}</td>
-                <td>${this.formatCurrency(user.balance || 0)}</td>
-                <td>${user.totalOrders || 0}</td>
-                <td><span class="status-badge ${user.isPremium ? 'premium' : 'regular'}">${user.isPremium ? '⭐ Premium' : 'Regular'}</span></td>
-                <td>${this.formatDate(user.joinedAt)}</td>
-                <td>
-                    <div class="action-buttons">
-                        <button class="btn-view" onclick="adminPanel.viewUser('${user.id}')"><i class="fas fa-eye"></i></button>
-                        <button class="btn-delete" onclick="adminPanel.banUser('${user.id}')"><i class="fas fa-ban"></i></button>
-                    </div>
-                </td>
-            </tr>
-        `).join('');
-        
-        // Setup search
-        this.setupUserSearch();
-        this.setupUserFilters();
-    }
-
-    setupUserSearch() {
-        const search = document.getElementById('search-users');
-        search?.addEventListener('input', (e) => {
-            const query = e.target.value.toLowerCase();
-            document.querySelectorAll('#users-tbody tr').forEach(row => {
-                const text = row.textContent.toLowerCase();
-                row.style.display = text.includes(query) ? '' : 'none';
-            });
-        });
-    }
-
-    setupUserFilters() {
-        document.querySelectorAll('#page-users .filter-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                document.querySelectorAll('#page-users .filter-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                
-                const filter = btn.dataset.filter;
-                document.querySelectorAll('#users-tbody tr').forEach(row => {
-                    const isPremium = row.querySelector('.status-badge.premium');
-                    if (filter === 'all') row.style.display = '';
-                    else if (filter === 'premium') row.style.display = isPremium ? '' : 'none';
-                    else row.style.display = isPremium ? 'none' : '';
-                });
-            });
-        });
-    }
-
-    viewUser(userId) {
-        const user = AdminState.users.find(u => String(u.id) === String(userId));
-        if (!user) return;
-        
-        AdminState.selectedUser = user;
-        
-        const orders = AdminState.orders.filter(o => String(o.userId) === String(userId));
-        const topups = AdminState.topupRequests.filter(t => String(t.userId) === String(userId));
-        
-        document.getElementById('modal-user-avatar').src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.firstName || 'U')}&background=8B5CF6&color=fff&size=128`;
-        document.getElementById('modal-user-name').textContent = `${user.firstName || ''} ${user.lastName || ''}`;
-        document.getElementById('modal-user-username').textContent = `@${user.username || 'N/A'}`;
-        document.getElementById('modal-premium-badge').style.display = user.isPremium ? 'inline-flex' : 'none';
-        document.getElementById('modal-balance').textContent = this.formatCurrency(user.balance || 0);
-        document.getElementById('modal-total-orders').textContent = orders.length;
-        document.getElementById('modal-approved').textContent = orders.filter(o => o.status === 'approved').length;
-        document.getElementById('modal-rejected').textContent = orders.filter(o => o.status === 'rejected').length;
-        document.getElementById('modal-total-topup').textContent = this.formatCurrency(topups.filter(t => t.status === 'approved').reduce((s, t) => s + (t.amount || 0), 0));
-        document.getElementById('modal-joined').textContent = this.formatDate(user.joinedAt);
-        
-        // Orders list
-        document.getElementById('user-orders-list').innerHTML = orders.length ? orders.slice(0, 10).map(o => `
-            <div class="mini-table-item">
-                <span>${o.productName || 'Product'}</span>
-                <span class="status-badge ${o.status}">${o.status}</span>
-            </div>
-        `).join('') : '<p class="text-muted">No orders</p>';
-        
-        // Topups list
-        document.getElementById('user-topups-list').innerHTML = topups.length ? topups.slice(0, 10).map(t => `
-            <div class="mini-table-item">
-                <span>${this.formatCurrency(t.amount)}</span>
-                <span class="status-badge ${t.status}">${t.status}</span>
-            </div>
-        `).join('') : '<p class="text-muted">No topups</p>';
-        
-        if (typeof Modal !== 'undefined') Modal.open('user-details-modal');
-    }
-
-    adjustBalance(operation) {
-        if (!AdminState.selectedUser) return;
-        
-        const amountInput = document.getElementById('adjust-balance-amount');
-        const amount = parseFloat(amountInput?.value || 0);
-        
-        if (!amount || amount <= 0) {
-            if (typeof Toast !== 'undefined') Toast.warning('Invalid Amount', 'Please enter a valid amount');
-            return;
-        }
-        
-        const user = AdminState.users.find(u => u.id === AdminState.selectedUser.id);
-        if (!user) return;
-        
-        if (operation === 'add') {
-            user.balance = (user.balance || 0) + amount;
-        } else {
-            user.balance = Math.max(0, (user.balance || 0) - amount);
-        }
-        
-        AdminStorage.set('users', AdminState.users);
-        
-        document.getElementById('modal-balance').textContent = this.formatCurrency(user.balance);
-        if (amountInput) amountInput.value = '';
-        
-        if (typeof Toast !== 'undefined') Toast.success('Success', `Balance ${operation === 'add' ? 'added' : 'deducted'} successfully`);
-    }
-
-    banUser(userId) {
-        if (!confirm('Are you sure you want to ban this user?')) return;
-        
-        const user = AdminState.users.find(u => String(u.id) === String(userId));
-        if (!user) return;
-        
-        AdminState.bannedUsers.push({
-            id: user.id,
-            username: user.username,
-            firstName: user.firstName,
-            lastName: user.lastName,
-            reason: 'Banned by admin',
-            bannedAt: new Date().toISOString()
-        });
-        
-        AdminStorage.set('bannedUsers', AdminState.bannedUsers);
-        if (typeof Toast !== 'undefined') Toast.success('User Banned', 'User has been banned successfully');
-        this.loadUsers();
-    }
-
-    banCurrentUser() {
-        if (AdminState.selectedUser) {
-            this.banUser(AdminState.selectedUser.id);
-            if (typeof Modal !== 'undefined') Modal.close('user-details-modal');
-        }
-    }
-
-    // ============================================
-    // Orders
-    // ============================================
-
-    loadOrders() {
-        const container = document.getElementById('admin-orders-list');
-        if (!container) return;
-        
-        const orders = [...AdminState.orders].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-        
-        if (orders.length === 0) {
-            container.innerHTML = '<div class="empty-state"><i class="fas fa-box-open"></i><p>No orders yet</p></div>';
-            return;
-        }
-        
-        container.innerHTML = orders.map(order => `
-            <div class="admin-order-card" data-order-id="${order.id}" data-status="${order.status}" onclick="adminPanel.viewOrder('${order.id}')">
-                <div class="admin-order-header">
-                    <span class="order-id">${order.id}</span>
-                    <span class="order-status ${order.status}">${order.status}</span>
-                </div>
-                <div class="admin-order-body">
-                    <div class="admin-order-user">
-                        <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(order.userName || 'U')}&background=8B5CF6&color=fff" alt="">
-                        <div class="info">
-                            <span class="name">${order.userName || 'User'}</span>
-                            <span class="id">ID: ${order.userId}</span>
-                        </div>
-                    </div>
-                    <div class="admin-order-product">
-                        <div class="info">
-                            <span class="name">${order.productName || 'Product'}</span>
-                            <span class="price">${this.formatCurrency(order.price, order.currency)}</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `).join('');
-        
-        this.setupOrderFilters();
-    }
-
-    setupOrderFilters() {
-        document.querySelectorAll('#page-orders .filter-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                document.querySelectorAll('#page-orders .filter-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                
-                const filter = btn.dataset.filter;
-                document.querySelectorAll('.admin-order-card').forEach(card => {
-                    card.style.display = (filter === 'all' || card.dataset.status === filter) ? '' : 'none';
-                });
-            });
-        });
-    }
-
-    viewOrder(orderId) {
-        const order = AdminState.orders.find(o => o.id === orderId);
-        if (!order) return;
-        
-        AdminState.selectedOrder = order;
-        
-        document.getElementById('order-id').textContent = order.id;
-        document.getElementById('order-status').textContent = order.status;
-        document.getElementById('order-status').className = `value status ${order.status}`;
-        document.getElementById('order-date').textContent = this.formatDate(order.createdAt, 'datetime');
-        document.getElementById('order-user-avatar').src = `https://ui-avatars.com/api/?name=${encodeURIComponent(order.userName || 'U')}&background=8B5CF6&color=fff`;
-        document.getElementById('order-user-name').textContent = order.userName || 'User';
-        document.getElementById('order-user-id').textContent = `ID: ${order.userId}`;
-        document.getElementById('order-product-icon').src = order.productIcon || 'https://ui-avatars.com/api/?name=P&background=6366F1&color=fff';
-        document.getElementById('order-product-name').textContent = order.productName || 'Product';
-        document.getElementById('order-product-amount').textContent = order.amount || '';
-        document.getElementById('order-product-price').textContent = this.formatCurrency(order.price, order.currency);
-        
-        // Input values
-        const inputInfo = document.getElementById('order-input-info');
-        const inputValues = document.getElementById('order-input-values');
-        
-        if (order.inputValues && Object.keys(order.inputValues).length > 0) {
-            inputInfo.style.display = 'block';
-            inputValues.innerHTML = Object.entries(order.inputValues).map(([key, value]) => {
-                const table = AdminState.inputTables.find(t => t.id === key);
-                return `<div class="input-value-item"><span class="label">${table?.name || key}:</span><span class="value">${value}</span></div>`;
-            }).join('');
-        } else {
-            inputInfo.style.display = 'none';
-        }
-        
-        // Show/hide actions based on status
-        document.getElementById('order-actions').style.display = order.status === 'pending' ? 'flex' : 'none';
-        
-        if (typeof Modal !== 'undefined') Modal.open('order-details-modal');
-    }
-
-    async approveOrder() {
-        if (!AdminState.selectedOrder) return;
-        
-        const order = AdminState.orders.find(o => o.id === AdminState.selectedOrder.id);
-        if (!order) return;
-        
-        order.status = 'approved';
-        order.updatedAt = new Date().toISOString();
-        
-        // Update user stats
-        const user = AdminState.users.find(u => String(u.id) === String(order.userId));
-        if (user) {
-            user.completedOrders = (user.completedOrders || 0) + 1;
-            AdminStorage.set('users', AdminState.users);
-        }
-        
-        AdminStorage.set('orders', AdminState.orders);
-        this.calculateStats();
-        
-        if (typeof Modal !== 'undefined') Modal.close('order-details-modal');
-        if (typeof Toast !== 'undefined') Toast.success('Order Approved', 'Order has been approved successfully');
-        this.loadOrders();
-    }
-
-    async rejectOrder() {
-        if (!AdminState.selectedOrder) return;
-        if (!confirm('Reject this order? The amount will be refunded.')) return;
-        
-        const order = AdminState.orders.find(o => o.id === AdminState.selectedOrder.id);
-        if (!order) return;
-        
-        order.status = 'rejected';
-        order.updatedAt = new Date().toISOString();
-        
-        // Refund user
-        const user = AdminState.users.find(u => String(u.id) === String(order.userId));
-        if (user) {
-            user.balance = (user.balance || 0) + (order.price || 0);
-            user.rejectedOrders = (user.rejectedOrders || 0) + 1;
-            AdminStorage.set('users', AdminState.users);
-        }
-        
-        AdminStorage.set('orders', AdminState.orders);
-        this.calculateStats();
-        
-        if (typeof Modal !== 'undefined') Modal.close('order-details-modal');
-        if (typeof Toast !== 'undefined') Toast.success('Order Rejected', 'Order rejected and amount refunded');
-        this.loadOrders();
-    }
-
-    // ============================================
-    // Topup Requests
-    // ============================================
-
-    loadTopupRequests() {
-        const container = document.getElementById('topup-requests-list');
-        if (!container) return;
-        
-        const topups = [...AdminState.topupRequests].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-        
-        if (topups.length === 0) {
-            container.innerHTML = '<div class="empty-state"><i class="fas fa-money-bill-wave"></i><p>No topup requests</p></div>';
-            return;
-        }
-        
-        container.innerHTML = topups.map(topup => `
-            <div class="topup-request-card" data-topup-id="${topup.id}" data-status="${topup.status}" onclick="adminPanel.viewTopup('${topup.id}')">
-                <div class="topup-request-header">
-                    <span class="order-id">${topup.id}</span>
-                    <span class="order-status ${topup.status}">${topup.status}</span>
-                </div>
-                <div class="topup-request-body">
-                    <div class="topup-user-info">
-                        <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(topup.userName || 'U')}&background=8B5CF6&color=fff" alt="">
-                        <div class="info">
-                            <span class="name">${topup.userName || 'User'}</span>
-                            <span class="id">ID: ${topup.userId}</span>
-                        </div>
-                    </div>
-                    <div style="text-align:right;">
-                        <div style="font-size:18px;font-weight:700;color:var(--success);">${this.formatCurrency(topup.amount)}</div>
-                        <div style="font-size:12px;color:var(--text-tertiary);">${this.formatDate(topup.createdAt, 'relative')}</div>
-                    </div>
-                </div>
-            </div>
-        `).join('');
-        
-        this.setupTopupFilters();
-    }
-
-    setupTopupFilters() {
-        document.querySelectorAll('#page-topup-requests .filter-btn, .topup-filter .filter-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const parent = btn.closest('.topup-filter') || document.querySelector('#page-topup-requests');
-                parent.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                
-                const filter = btn.dataset.filter;
-                document.querySelectorAll('.topup-request-card').forEach(card => {
-                    card.style.display = (filter === 'all' || card.dataset.status === filter) ? '' : 'none';
-                });
-            });
-        });
-    }
-
-    viewTopup(topupId) {
-        const topup = AdminState.topupRequests.find(t => t.id === topupId);
-        if (!topup) return;
-        
-        AdminState.selectedTopup = topup;
-        
-        document.getElementById('topup-user-avatar').src = `https://ui-avatars.com/api/?name=${encodeURIComponent(topup.userName || 'U')}&background=8B5CF6&color=fff`;
-        document.getElementById('topup-user-name').textContent = topup.userName || 'User';
-        document.getElementById('topup-user-id').textContent = `ID: ${topup.userId}`;
-        document.getElementById('topup-amount-value').textContent = this.formatCurrency(topup.amount);
-        document.getElementById('topup-payment-method').textContent = topup.paymentMethod || '-';
-        document.getElementById('topup-date').textContent = this.formatDate(topup.createdAt, 'datetime');
-        document.getElementById('topup-status').textContent = topup.status;
-        document.getElementById('topup-status').className = `value status ${topup.status}`;
-        document.getElementById('topup-screenshot').src = topup.screenshot || '';
-        
-        document.getElementById('topup-actions').style.display = topup.status === 'pending' ? 'flex' : 'none';
-        
-        if (typeof Modal !== 'undefined') Modal.open('topup-request-modal');
-    }
-
-    async approveTopup() {
-        if (!AdminState.selectedTopup) return;
-        
-        const topup = AdminState.topupRequests.find(t => t.id === AdminState.selectedTopup.id);
-        if (!topup) return;
-        
-        topup.status = 'approved';
-        topup.updatedAt = new Date().toISOString();
-        
-        // Add balance to user
-        const user = AdminState.users.find(u => String(u.id) === String(topup.userId));
-        if (user) {
-            user.balance = (user.balance || 0) + (topup.amount || 0);
-            user.totalTopup = (user.totalTopup || 0) + (topup.amount || 0);
-            AdminStorage.set('users', AdminState.users);
-        }
-        
-        AdminStorage.set('topupRequests', AdminState.topupRequests);
-        this.calculateStats();
-        
-        if (typeof Modal !== 'undefined') Modal.close('topup-request-modal');
-        if (typeof Toast !== 'undefined') Toast.success('Topup Approved', 'Balance added to user');
-        this.loadTopupRequests();
-    }
-
-    async rejectTopup() {
-        if (!AdminState.selectedTopup) return;
-        if (!confirm('Reject this topup request?')) return;
-        
-        const topup = AdminState.topupRequests.find(t => t.id === AdminState.selectedTopup.id);
-        if (!topup) return;
-        
-        topup.status = 'rejected';
-        topup.updatedAt = new Date().toISOString();
-        
-        AdminStorage.set('topupRequests', AdminState.topupRequests);
-        this.calculateStats();
-        
-        if (typeof Modal !== 'undefined') Modal.close('topup-request-modal');
-        if (typeof Toast !== 'undefined') Toast.success('Topup Rejected', 'Request has been rejected');
-        this.loadTopupRequests();
-    }
-
-    // ============================================
-    // Categories
+    // Categories - with JSONBin save
     // ============================================
 
     loadCategories() {
@@ -1123,8 +897,6 @@ class AdminPanel {
         
         container.innerHTML = AdminState.categories.map(cat => {
             const productCount = AdminState.products.filter(p => p.categoryId === cat.id).length;
-            const soldCount = AdminState.orders.filter(o => o.categoryId === cat.id && o.status === 'approved').length;
-            
             return `
                 <div class="admin-category-card" data-category-id="${cat.id}">
                     <div class="admin-category-icon">
@@ -1134,7 +906,7 @@ class AdminPanel {
                     </div>
                     <div class="admin-category-info">
                         <h4>${cat.name}</h4>
-                        <span class="stats">${productCount} products • <span>${soldCount}</span> sold</span>
+                        <span class="stats">${productCount} products</span>
                     </div>
                     <div class="admin-category-actions">
                         <button class="btn-view" onclick="adminPanel.editCategory('${cat.id}')"><i class="fas fa-edit"></i></button>
@@ -1147,14 +919,11 @@ class AdminPanel {
 
     openCategoryModal(categoryId = null) {
         const form = document.getElementById('category-form');
-        const title = document.getElementById('category-modal-title');
-        
         form?.reset();
         document.getElementById('category-id').value = categoryId || '';
         document.getElementById('category-icon-preview')?.classList.add('hidden');
         document.querySelector('#category-icon-upload .file-upload-content')?.classList.remove('hidden');
-        
-        title.textContent = categoryId ? 'Edit Category' : 'Add Category';
+        document.getElementById('category-modal-title').textContent = categoryId ? 'Edit Category' : 'Add Category';
         
         if (categoryId) {
             const cat = AdminState.categories.find(c => c.id === categoryId);
@@ -1170,7 +939,7 @@ class AdminPanel {
             }
         }
         
-        if (typeof Modal !== 'undefined') Modal.open('category-modal');
+        Modal.open('category-modal');
     }
 
     editCategory(categoryId) {
@@ -1179,6 +948,7 @@ class AdminPanel {
 
     async saveCategory(e) {
         e.preventDefault();
+        Loading.show('Saving category...');
         
         const id = document.getElementById('category-id').value;
         const name = document.getElementById('category-name').value.trim();
@@ -1188,17 +958,14 @@ class AdminPanel {
         const previewImg = document.getElementById('category-icon-img');
         
         if (!name) {
-            if (typeof Toast !== 'undefined') Toast.warning('Required', 'Please enter category name');
+            Loading.hide();
+            Toast.warning('Required', 'Please enter category name');
             return;
         }
         
         let icon = previewImg?.src || '';
         if (iconInput?.files[0]) {
-            if (typeof FileUpload !== 'undefined' && FileUpload.toBase64) {
-                icon = await FileUpload.toBase64(iconInput.files[0]);
-            } else {
-                icon = await this.fileToBase64(iconInput.files[0]);
-            }
+            icon = await this.fileToBase64(iconInput.files[0]);
         }
         
         const categoryData = {
@@ -1220,36 +987,41 @@ class AdminPanel {
             AdminState.categories.push(categoryData);
         }
         
-        AdminStorage.set('categories', AdminState.categories);
-        if (typeof Modal !== 'undefined') Modal.close('category-modal');
-        if (typeof Toast !== 'undefined') Toast.success('Success', 'Category saved successfully');
+        // Save to JSONBin
+        await this.saveData('categories');
+        
+        Loading.hide();
+        Modal.close('category-modal');
+        Toast.success('Success', 'Category saved successfully');
         this.loadCategories();
     }
 
-    deleteCategory(categoryId) {
+    async deleteCategory(categoryId) {
         const products = AdminState.products.filter(p => p.categoryId === categoryId);
         if (products.length > 0) {
-            if (typeof Toast !== 'undefined') Toast.warning('Cannot Delete', `This category has ${products.length} products. Delete products first.`);
+            Toast.warning('Cannot Delete', `This category has ${products.length} products. Delete products first.`);
             return;
         }
         
         if (!confirm('Delete this category?')) return;
         
+        Loading.show('Deleting...');
         AdminState.categories = AdminState.categories.filter(c => c.id !== categoryId);
-        AdminStorage.set('categories', AdminState.categories);
-        if (typeof Toast !== 'undefined') Toast.success('Deleted', 'Category deleted successfully');
+        await this.saveData('categories');
+        Loading.hide();
+        
+        Toast.success('Deleted', 'Category deleted successfully');
         this.loadCategories();
     }
 
     // ============================================
-    // Products
+    // Products - with JSONBin save
     // ============================================
 
     loadProducts() {
         const container = document.getElementById('admin-products');
         const filterSelect = document.getElementById('filter-product-category');
         
-        // Load category filter
         if (filterSelect) {
             filterSelect.innerHTML = '<option value="">All Categories</option>' +
                 AdminState.categories.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
@@ -1277,19 +1049,16 @@ class AdminPanel {
                 <div class="admin-product-card" data-product-id="${product.id}" data-category-id="${product.categoryId}">
                     <div class="admin-product-image">
                         ${product.icon ? `<img src="${product.icon}" alt="${product.name}">` : '<i class="fas fa-box" style="font-size:48px;color:var(--primary);"></i>'}
-                        <div class="admin-product-badges">
-                            ${product.hasDiscount ? `<span class="badge" style="background:var(--danger);color:white;">-${product.discount}%</span>` : ''}
-                            ${!product.active ? '<span class="badge" style="background:var(--text-tertiary);color:white;">Inactive</span>' : ''}
-                        </div>
+                        ${product.hasDiscount ? `<span class="badge" style="background:var(--danger);color:white;position:absolute;top:5px;right:5px;">-${product.discount}%</span>` : ''}
                     </div>
                     <div class="admin-product-info">
                         <div class="category-tag">${category?.name || 'Unknown'}</div>
                         <h4>${product.name}</h4>
                         <div class="price-row">
                             <span class="price-current">${this.formatCurrency(discountedPrice, product.currency)}</span>
-                            ${product.hasDiscount ? `<span class="price-original">${this.formatCurrency(product.price, product.currency)}</span>` : ''}
+                            ${product.hasDiscount ? `<span class="price-original" style="text-decoration:line-through;opacity:0.6;font-size:12px;margin-left:5px;">${this.formatCurrency(product.price, product.currency)}</span>` : ''}
                         </div>
-                        <div class="admin-product-actions">
+                        <div class="admin-product-actions" style="margin-top:10px;">
                             <button class="btn-view" onclick="adminPanel.editProduct('${product.id}')"><i class="fas fa-edit"></i></button>
                             <button class="btn-delete" onclick="adminPanel.deleteProduct('${product.id}')"><i class="fas fa-trash"></i></button>
                         </div>
@@ -1301,18 +1070,13 @@ class AdminPanel {
 
     openProductModal(productId = null) {
         const form = document.getElementById('product-form');
-        const title = document.getElementById('product-modal-title');
-        const categorySelect = document.getElementById('product-category');
-        const discountFields = document.getElementById('discount-fields');
-        
         form?.reset();
         document.getElementById('product-id').value = productId || '';
         document.getElementById('product-icon-preview')?.classList.add('hidden');
-        discountFields?.classList.add('hidden');
+        document.getElementById('discount-fields')?.classList.add('hidden');
+        document.getElementById('product-modal-title').textContent = productId ? 'Edit Product' : 'Add Product';
         
-        title.textContent = productId ? 'Edit Product' : 'Add Product';
-        
-        // Load categories
+        const categorySelect = document.getElementById('product-category');
         if (categorySelect) {
             categorySelect.innerHTML = '<option value="">Choose Category</option>' +
                 AdminState.categories.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
@@ -1330,7 +1094,7 @@ class AdminPanel {
                 document.getElementById('product-active').checked = product.active !== false;
                 
                 if (product.hasDiscount) {
-                    discountFields?.classList.remove('hidden');
+                    document.getElementById('discount-fields')?.classList.remove('hidden');
                     document.getElementById('product-discount').value = product.discount || 0;
                     this.calculateDiscountedPrice();
                 }
@@ -1342,7 +1106,7 @@ class AdminPanel {
             }
         }
         
-        if (typeof Modal !== 'undefined') Modal.open('product-modal');
+        Modal.open('product-modal');
     }
 
     editProduct(productId) {
@@ -1353,13 +1117,13 @@ class AdminPanel {
         const price = parseFloat(document.getElementById('product-price')?.value) || 0;
         const discount = parseFloat(document.getElementById('product-discount')?.value) || 0;
         const discounted = Math.round(price - (price * discount / 100));
-        
         const el = document.getElementById('product-discounted-price');
         if (el) el.value = discounted;
     }
 
     async saveProduct(e) {
         e.preventDefault();
+        Loading.show('Saving product...');
         
         const id = document.getElementById('product-id').value;
         const categoryId = document.getElementById('product-category').value;
@@ -1374,17 +1138,14 @@ class AdminPanel {
         const previewImg = document.getElementById('product-icon-img');
         
         if (!categoryId || !name || !price) {
-            if (typeof Toast !== 'undefined') Toast.warning('Required', 'Please fill all required fields');
+            Loading.hide();
+            Toast.warning('Required', 'Please fill all required fields');
             return;
         }
         
         let icon = previewImg?.src || '';
         if (iconInput?.files[0]) {
-            if (typeof FileUpload !== 'undefined' && FileUpload.toBase64) {
-                icon = await FileUpload.toBase64(iconInput.files[0]);
-            } else {
-                icon = await this.fileToBase64(iconInput.files[0]);
-            }
+            icon = await this.fileToBase64(iconInput.files[0]);
         }
         
         const productData = {
@@ -1411,23 +1172,28 @@ class AdminPanel {
             AdminState.products.push(productData);
         }
         
-        AdminStorage.set('products', AdminState.products);
-        if (typeof Modal !== 'undefined') Modal.close('product-modal');
-        if (typeof Toast !== 'undefined') Toast.success('Success', 'Product saved successfully');
+        await this.saveData('products');
+        
+        Loading.hide();
+        Modal.close('product-modal');
+        Toast.success('Success', 'Product saved successfully');
         this.loadProducts();
     }
 
-    deleteProduct(productId) {
+    async deleteProduct(productId) {
         if (!confirm('Delete this product?')) return;
         
+        Loading.show('Deleting...');
         AdminState.products = AdminState.products.filter(p => p.id !== productId);
-        AdminStorage.set('products', AdminState.products);
-        if (typeof Toast !== 'undefined') Toast.success('Deleted', 'Product deleted successfully');
+        await this.saveData('products');
+        Loading.hide();
+        
+        Toast.success('Deleted', 'Product deleted successfully');
         this.loadProducts();
     }
 
     // ============================================
-    // Payment Methods
+    // Payments - with JSONBin save
     // ============================================
 
     loadPayments() {
@@ -1435,7 +1201,7 @@ class AdminPanel {
         if (!container) return;
         
         if (AdminState.payments.length === 0) {
-            container.innerHTML = '<div class="empty-state" style="grid-column:1/-1;"><i class="fas fa-credit-card"></i><p>No payment methods yet. Click "Add Payment" to create one.</p></div>';
+            container.innerHTML = '<div class="empty-state"><i class="fas fa-credit-card"></i><p>No payment methods yet.</p></div>';
             return;
         }
         
@@ -1460,14 +1226,11 @@ class AdminPanel {
 
     openPaymentModal(paymentId = null) {
         const form = document.getElementById('payment-form');
-        const title = document.getElementById('payment-modal-title');
-        
         form?.reset();
         document.getElementById('payment-id').value = paymentId || '';
         document.getElementById('payment-icon-preview')?.classList.add('hidden');
         document.querySelector('#payment-icon-upload .file-upload-content')?.classList.remove('hidden');
-        
-        title.textContent = paymentId ? 'Edit Payment Method' : 'Add Payment Method';
+        document.getElementById('payment-modal-title').textContent = paymentId ? 'Edit Payment Method' : 'Add Payment Method';
         
         if (paymentId) {
             const payment = AdminState.payments.find(p => p.id === paymentId);
@@ -1485,7 +1248,7 @@ class AdminPanel {
             }
         }
         
-        if (typeof Modal !== 'undefined') Modal.open('payment-modal');
+        Modal.open('payment-modal');
     }
 
     editPayment(paymentId) {
@@ -1494,6 +1257,7 @@ class AdminPanel {
 
     async savePayment(e) {
         e.preventDefault();
+        Loading.show('Saving payment method...');
         
         const id = document.getElementById('payment-id').value;
         const name = document.getElementById('payment-name').value.trim();
@@ -1505,17 +1269,14 @@ class AdminPanel {
         const previewImg = document.getElementById('payment-icon-img');
         
         if (!name || !address || !holder) {
-            if (typeof Toast !== 'undefined') Toast.warning('Required', 'Please fill all required fields');
+            Loading.hide();
+            Toast.warning('Required', 'Please fill all required fields');
             return;
         }
         
         let icon = previewImg?.src || '';
         if (iconInput?.files[0]) {
-            if (typeof FileUpload !== 'undefined' && FileUpload.toBase64) {
-                icon = await FileUpload.toBase64(iconInput.files[0]);
-            } else {
-                icon = await this.fileToBase64(iconInput.files[0]);
-            }
+            icon = await this.fileToBase64(iconInput.files[0]);
         }
         
         const paymentData = {
@@ -1539,19 +1300,276 @@ class AdminPanel {
             AdminState.payments.push(paymentData);
         }
         
-        AdminStorage.set('payments', AdminState.payments);
-        if (typeof Modal !== 'undefined') Modal.close('payment-modal');
-        if (typeof Toast !== 'undefined') Toast.success('Success', 'Payment method saved successfully');
+        await this.saveData('payments');
+        
+        Loading.hide();
+        Modal.close('payment-modal');
+        Toast.success('Success', 'Payment method saved successfully');
         this.loadPayments();
     }
 
-    deletePayment(paymentId) {
+    async deletePayment(paymentId) {
         if (!confirm('Delete this payment method?')) return;
         
+        Loading.show('Deleting...');
         AdminState.payments = AdminState.payments.filter(p => p.id !== paymentId);
-        AdminStorage.set('payments', AdminState.payments);
-        if (typeof Toast !== 'undefined') Toast.success('Deleted', 'Payment method deleted successfully');
+        await this.saveData('payments');
+        Loading.hide();
+        
+        Toast.success('Deleted', 'Payment method deleted successfully');
         this.loadPayments();
+    }
+
+    // ============================================
+    // Users, Orders, Topups (Read & Action)
+    // ============================================
+
+    loadUsers() {
+        const tbody = document.getElementById('users-tbody');
+        if (!tbody) return;
+        
+        if (AdminState.users.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted p-lg">No users yet</td></tr>';
+            return;
+        }
+        
+        tbody.innerHTML = AdminState.users.map(user => `
+            <tr data-user-id="${user.id}">
+                <td>
+                    <div class="user-cell">
+                        <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(user.firstName || 'U')}&background=8B5CF6&color=fff" alt="">
+                        <div class="user-info">
+                            <span class="name">${user.firstName || ''} ${user.lastName || ''}</span>
+                            <span class="username">@${user.username || 'N/A'}</span>
+                        </div>
+                    </div>
+                </td>
+                <td>${user.id}</td>
+                <td>${this.formatCurrency(user.balance || 0)}</td>
+                <td>${user.totalOrders || 0}</td>
+                <td><span class="status-badge ${user.isPremium ? 'premium' : 'regular'}">${user.isPremium ? '⭐ Premium' : 'Regular'}</span></td>
+                <td>${this.formatDate(user.joinedAt)}</td>
+                <td>
+                    <div class="action-buttons">
+                        <button class="btn-view" onclick="adminPanel.viewUser('${user.id}')"><i class="fas fa-eye"></i></button>
+                    </div>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    viewUser(userId) {
+        const user = AdminState.users.find(u => String(u.id) === String(userId));
+        if (!user) return;
+        
+        AdminState.selectedUser = user;
+        
+        document.getElementById('modal-user-avatar').src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.firstName || 'U')}&background=8B5CF6&color=fff&size=128`;
+        document.getElementById('modal-user-name').textContent = `${user.firstName || ''} ${user.lastName || ''}`;
+        document.getElementById('modal-user-username').textContent = `@${user.username || 'N/A'}`;
+        document.getElementById('modal-balance').textContent = this.formatCurrency(user.balance || 0);
+        
+        Modal.open('user-details-modal');
+    }
+
+    async adjustBalance(operation) {
+        if (!AdminState.selectedUser) return;
+        
+        const amount = parseFloat(document.getElementById('adjust-balance-amount')?.value || 0);
+        if (!amount || amount <= 0) {
+            Toast.warning('Invalid Amount', 'Please enter a valid amount');
+            return;
+        }
+        
+        Loading.show('Updating balance...');
+        
+        const user = AdminState.users.find(u => u.id === AdminState.selectedUser.id);
+        if (user) {
+            if (operation === 'add') {
+                user.balance = (user.balance || 0) + amount;
+            } else {
+                user.balance = Math.max(0, (user.balance || 0) - amount);
+            }
+            
+            await this.saveData('users');
+            document.getElementById('modal-balance').textContent = this.formatCurrency(user.balance);
+            document.getElementById('adjust-balance-amount').value = '';
+        }
+        
+        Loading.hide();
+        Toast.success('Success', `Balance ${operation === 'add' ? 'added' : 'deducted'} successfully`);
+    }
+
+    loadOrders() {
+        const container = document.getElementById('admin-orders-list');
+        if (!container) return;
+        
+        const orders = [...AdminState.orders].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        
+        if (orders.length === 0) {
+            container.innerHTML = '<div class="empty-state"><i class="fas fa-box-open"></i><p>No orders yet</p></div>';
+            return;
+        }
+        
+        container.innerHTML = orders.map(order => `
+            <div class="admin-order-card" data-order-id="${order.id}" data-status="${order.status}" onclick="adminPanel.viewOrder('${order.id}')">
+                <div class="admin-order-header">
+                    <span class="order-id">${order.id}</span>
+                    <span class="order-status ${order.status}">${order.status}</span>
+                </div>
+                <div class="admin-order-body">
+                    <div class="admin-order-product">
+                        <span class="name">${order.productName || 'Product'}</span>
+                        <span class="price">${this.formatCurrency(order.price)}</span>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    viewOrder(orderId) {
+        const order = AdminState.orders.find(o => o.id === orderId);
+        if (!order) return;
+        
+        AdminState.selectedOrder = order;
+        
+        document.getElementById('order-id').textContent = order.id;
+        document.getElementById('order-status').textContent = order.status;
+        document.getElementById('order-product-name').textContent = order.productName || 'Product';
+        document.getElementById('order-product-price').textContent = this.formatCurrency(order.price);
+        document.getElementById('order-actions').style.display = order.status === 'pending' ? 'flex' : 'none';
+        
+        Modal.open('order-details-modal');
+    }
+
+    async approveOrder() {
+        if (!AdminState.selectedOrder) return;
+        
+        Loading.show('Approving order...');
+        
+        const order = AdminState.orders.find(o => o.id === AdminState.selectedOrder.id);
+        if (order) {
+            order.status = 'approved';
+            order.updatedAt = new Date().toISOString();
+            await this.saveData('orders');
+            this.calculateStats();
+        }
+        
+        Loading.hide();
+        Modal.close('order-details-modal');
+        Toast.success('Order Approved', 'Order has been approved successfully');
+        this.loadOrders();
+    }
+
+    async rejectOrder() {
+        if (!AdminState.selectedOrder) return;
+        if (!confirm('Reject this order?')) return;
+        
+        Loading.show('Rejecting order...');
+        
+        const order = AdminState.orders.find(o => o.id === AdminState.selectedOrder.id);
+        if (order) {
+            order.status = 'rejected';
+            order.updatedAt = new Date().toISOString();
+            
+            // Refund user
+            const user = AdminState.users.find(u => String(u.id) === String(order.userId));
+            if (user) {
+                user.balance = (user.balance || 0) + (order.price || 0);
+                await this.saveData('users');
+            }
+            
+            await this.saveData('orders');
+            this.calculateStats();
+        }
+        
+        Loading.hide();
+        Modal.close('order-details-modal');
+        Toast.success('Order Rejected', 'Order rejected and amount refunded');
+        this.loadOrders();
+    }
+
+    loadTopupRequests() {
+        const container = document.getElementById('topup-requests-list');
+        if (!container) return;
+        
+        const topups = [...AdminState.topupRequests].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        
+        if (topups.length === 0) {
+            container.innerHTML = '<div class="empty-state"><i class="fas fa-money-bill-wave"></i><p>No topup requests</p></div>';
+            return;
+        }
+        
+        container.innerHTML = topups.map(topup => `
+            <div class="topup-request-card" data-topup-id="${topup.id}" onclick="adminPanel.viewTopup('${topup.id}')">
+                <div class="topup-request-header">
+                    <span class="order-id">${topup.id}</span>
+                    <span class="order-status ${topup.status}">${topup.status}</span>
+                </div>
+                <div style="font-size:18px;font-weight:700;color:var(--success);">${this.formatCurrency(topup.amount)}</div>
+            </div>
+        `).join('');
+    }
+
+    viewTopup(topupId) {
+        const topup = AdminState.topupRequests.find(t => t.id === topupId);
+        if (!topup) return;
+        
+        AdminState.selectedTopup = topup;
+        
+        document.getElementById('topup-amount-value').textContent = this.formatCurrency(topup.amount);
+        document.getElementById('topup-status').textContent = topup.status;
+        document.getElementById('topup-screenshot').src = topup.screenshot || '';
+        document.getElementById('topup-actions').style.display = topup.status === 'pending' ? 'flex' : 'none';
+        
+        Modal.open('topup-request-modal');
+    }
+
+    async approveTopup() {
+        if (!AdminState.selectedTopup) return;
+        
+        Loading.show('Approving topup...');
+        
+        const topup = AdminState.topupRequests.find(t => t.id === AdminState.selectedTopup.id);
+        if (topup) {
+            topup.status = 'approved';
+            topup.updatedAt = new Date().toISOString();
+            
+            // Add balance to user
+            const user = AdminState.users.find(u => String(u.id) === String(topup.userId));
+            if (user) {
+                user.balance = (user.balance || 0) + (topup.amount || 0);
+                await this.saveData('users');
+            }
+            
+            await this.saveData('topupRequests');
+            this.calculateStats();
+        }
+        
+        Loading.hide();
+        Modal.close('topup-request-modal');
+        Toast.success('Topup Approved', 'Balance added to user');
+        this.loadTopupRequests();
+    }
+
+    async rejectTopup() {
+        if (!AdminState.selectedTopup) return;
+        if (!confirm('Reject this topup request?')) return;
+        
+        Loading.show('Rejecting topup...');
+        
+        const topup = AdminState.topupRequests.find(t => t.id === AdminState.selectedTopup.id);
+        if (topup) {
+            topup.status = 'rejected';
+            topup.updatedAt = new Date().toISOString();
+            await this.saveData('topupRequests');
+            this.calculateStats();
+        }
+        
+        Loading.hide();
+        Modal.close('topup-request-modal');
+        Toast.success('Topup Rejected', 'Request has been rejected');
+        this.loadTopupRequests();
     }
 
     // ============================================
@@ -1559,165 +1577,112 @@ class AdminPanel {
     // ============================================
 
     loadBanners() {
-        // Type 1 banners
         const type1Container = document.getElementById('type1-banners');
         if (type1Container) {
-            if (AdminState.bannersType1.length === 0) {
-                type1Container.innerHTML = '<p class="text-muted">No home banners yet. Click "Add Banner" to create one.</p>';
-            } else {
-                type1Container.innerHTML = AdminState.bannersType1.map(b => `
-                    <div class="banner-card" data-banner-id="${b.id}">
-                        <img src="${b.image}" alt="Banner" class="banner-card-image">
+            type1Container.innerHTML = AdminState.bannersType1.length ? 
+                AdminState.bannersType1.map(b => `
+                    <div class="banner-card">
+                        <img src="${b.image}" alt="Banner">
                         <div class="banner-card-actions">
-                            <button class="edit-btn" onclick="adminPanel.editBanner('${b.id}', 'type1')"><i class="fas fa-edit"></i></button>
-                            <button class="delete-btn" onclick="adminPanel.deleteBanner('${b.id}', 'type1')"><i class="fas fa-trash"></i></button>
+                            <button onclick="adminPanel.deleteBanner('${b.id}', 'type1')"><i class="fas fa-trash"></i></button>
                         </div>
                     </div>
-                `).join('');
-            }
+                `).join('') : '<p class="text-muted">No home banners yet.</p>';
         }
         
-        // Type 2 banners
         const type2Container = document.getElementById('type2-banners');
         if (type2Container) {
-            if (AdminState.bannersType2.length === 0) {
-                type2Container.innerHTML = '<p class="text-muted">No category banners yet. Click "Add Banner" to create one.</p>';
-            } else {
-                type2Container.innerHTML = AdminState.bannersType2.map(b => {
+            type2Container.innerHTML = AdminState.bannersType2.length ?
+                AdminState.bannersType2.map(b => {
                     const cat = AdminState.categories.find(c => c.id === b.categoryId);
                     return `
-                        <div class="banner-list-item" data-banner-id="${b.id}">
-                            <img src="${b.image}" alt="Banner" class="banner-list-item-image">
-                            <div class="banner-list-item-content">
-                                <span class="category-tag">${cat?.name || 'Unknown'}</span>
-                                <p>${(b.instructions || '').substring(0, 100)}${(b.instructions || '').length > 100 ? '...' : ''}</p>
-                            </div>
-                            <div class="banner-list-item-actions">
-                                <button class="btn-view" onclick="adminPanel.editBanner('${b.id}', 'type2')"><i class="fas fa-edit"></i></button>
-                                <button class="btn-delete" onclick="adminPanel.deleteBanner('${b.id}', 'type2')"><i class="fas fa-trash"></i></button>
-                            </div>
+                        <div class="banner-list-item">
+                            <img src="${b.image}" alt="Banner" style="width:100px;height:60px;object-fit:cover;border-radius:8px;">
+                            <span>${cat?.name || 'Unknown'}</span>
+                            <button onclick="adminPanel.deleteBanner('${b.id}', 'type2')"><i class="fas fa-trash"></i></button>
                         </div>
                     `;
-                }).join('');
-            }
+                }).join('') : '<p class="text-muted">No category banners yet.</p>';
         }
     }
 
-    openBannerModal(type, bannerId = null) {
-        const form = document.getElementById('banner-form');
-        const title = document.getElementById('banner-modal-title');
-        const categoryGroup = document.getElementById('banner-category-group');
-        const instructionsGroup = document.getElementById('banner-instructions-group');
-        const categorySelect = document.getElementById('banner-category');
-        
-        form?.reset();
-        document.getElementById('banner-id').value = bannerId || '';
+    openBannerModal(type) {
+        document.getElementById('banner-form')?.reset();
+        document.getElementById('banner-id').value = '';
         document.getElementById('banner-type').value = type;
         document.getElementById('banner-preview')?.classList.add('hidden');
         document.querySelector('#banner-file-upload .file-upload-content')?.classList.remove('hidden');
         
-        title.textContent = bannerId ? 'Edit Banner' : 'Add Banner';
+        document.getElementById('banner-category-group').style.display = type === 'type2' ? 'block' : 'none';
+        document.getElementById('banner-instructions-group').style.display = type === 'type2' ? 'block' : 'none';
         
-        categoryGroup.style.display = type === 'type2' ? 'block' : 'none';
-        instructionsGroup.style.display = type === 'type2' ? 'block' : 'none';
-        
-        if (type === 'type2' && categorySelect) {
-            categorySelect.innerHTML = '<option value="">Select Category</option>' +
+        if (type === 'type2') {
+            document.getElementById('banner-category').innerHTML = '<option value="">Select Category</option>' +
                 AdminState.categories.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
         }
         
-        if (bannerId) {
-            const banners = type === 'type1' ? AdminState.bannersType1 : AdminState.bannersType2;
-            const banner = banners.find(b => b.id === bannerId);
-            if (banner) {
-                if (banner.image) {
-                    document.getElementById('banner-preview-img').src = banner.image;
-                    document.getElementById('banner-preview')?.classList.remove('hidden');
-                    document.querySelector('#banner-file-upload .file-upload-content')?.classList.add('hidden');
-                }
-                if (type === 'type2') {
-                    if (categorySelect) categorySelect.value = banner.categoryId || '';
-                    document.getElementById('banner-instructions').value = banner.instructions || '';
-                }
-            }
-        }
-        
-        if (typeof Modal !== 'undefined') Modal.open('add-banner-modal');
-    }
-
-    editBanner(bannerId, type) {
-        this.openBannerModal(type, bannerId);
+        Modal.open('add-banner-modal');
     }
 
     async saveBanner(e) {
         e.preventDefault();
+        Loading.show('Saving banner...');
         
-        const id = document.getElementById('banner-id').value;
         const type = document.getElementById('banner-type').value;
         const imageInput = document.getElementById('banner-image');
         const previewImg = document.getElementById('banner-preview-img');
         
         let image = previewImg?.src || '';
         if (imageInput?.files[0]) {
-            if (typeof FileUpload !== 'undefined' && FileUpload.toBase64) {
-                image = await FileUpload.toBase64(imageInput.files[0]);
-            } else {
-                image = await this.fileToBase64(imageInput.files[0]);
-            }
+            image = await this.fileToBase64(imageInput.files[0]);
         }
         
         if (!image) {
-            if (typeof Toast !== 'undefined') Toast.warning('Required', 'Please upload a banner image');
+            Loading.hide();
+            Toast.warning('Required', 'Please upload a banner image');
             return;
         }
         
         const bannerData = {
-            id: id || 'banner_' + Date.now(),
+            id: 'banner_' + Date.now(),
             image,
-            updatedAt: new Date().toISOString()
+            createdAt: new Date().toISOString()
         };
         
         if (type === 'type2') {
             bannerData.categoryId = document.getElementById('banner-category').value;
             bannerData.instructions = document.getElementById('banner-instructions').value;
-            
-            if (!bannerData.categoryId) {
-                if (typeof Toast !== 'undefined') Toast.warning('Required', 'Please select a category');
-                return;
-            }
         }
         
-        const banners = type === 'type1' ? AdminState.bannersType1 : AdminState.bannersType2;
-        const storageKey = type === 'type1' ? 'bannersType1' : 'bannersType2';
-        
-        if (id) {
-            const index = banners.findIndex(b => b.id === id);
-            if (index !== -1) {
-                banners[index] = { ...banners[index], ...bannerData };
-            }
+        if (type === 'type1') {
+            AdminState.bannersType1.push(bannerData);
+            await this.saveData('bannersType1');
         } else {
-            bannerData.createdAt = new Date().toISOString();
-            banners.push(bannerData);
+            AdminState.bannersType2.push(bannerData);
+            await this.saveData('bannersType2');
         }
         
-        AdminStorage.set(storageKey, banners);
-        if (typeof Modal !== 'undefined') Modal.close('add-banner-modal');
-        if (typeof Toast !== 'undefined') Toast.success('Success', 'Banner saved successfully');
+        Loading.hide();
+        Modal.close('add-banner-modal');
+        Toast.success('Success', 'Banner saved successfully');
         this.loadBanners();
     }
 
-    deleteBanner(bannerId, type) {
+    async deleteBanner(bannerId, type) {
         if (!confirm('Delete this banner?')) return;
+        
+        Loading.show('Deleting...');
         
         if (type === 'type1') {
             AdminState.bannersType1 = AdminState.bannersType1.filter(b => b.id !== bannerId);
-            AdminStorage.set('bannersType1', AdminState.bannersType1);
+            await this.saveData('bannersType1');
         } else {
             AdminState.bannersType2 = AdminState.bannersType2.filter(b => b.id !== bannerId);
-            AdminStorage.set('bannersType2', AdminState.bannersType2);
+            await this.saveData('bannersType2');
         }
         
-        if (typeof Toast !== 'undefined') Toast.success('Deleted', 'Banner deleted successfully');
+        Loading.hide();
+        Toast.success('Deleted', 'Banner deleted');
         this.loadBanners();
     }
 
@@ -1730,113 +1695,82 @@ class AdminPanel {
         if (!container) return;
         
         if (AdminState.inputTables.length === 0) {
-            container.innerHTML = '<div class="empty-state"><i class="fas fa-keyboard"></i><p>No input tables yet. Click "Add Input Table" to create one.</p></div>';
+            container.innerHTML = '<div class="empty-state"><i class="fas fa-keyboard"></i><p>No input tables yet.</p></div>';
             return;
         }
         
         container.innerHTML = AdminState.inputTables.map(table => {
             const cat = AdminState.categories.find(c => c.id === table.categoryId);
             return `
-                <div class="input-table-card" data-table-id="${table.id}">
-                    <div class="input-table-icon"><i class="fas fa-keyboard"></i></div>
+                <div class="input-table-card">
                     <div class="input-table-info">
                         <h4>${table.name}</h4>
-                        <div class="meta">
-                            <span><i class="fas fa-folder"></i> ${cat?.name || 'Unknown'}</span>
-                            <span><i class="fas fa-asterisk"></i> ${table.required ? 'Required' : 'Optional'}</span>
-                        </div>
+                        <span>${cat?.name || 'Unknown'} • ${table.required ? 'Required' : 'Optional'}</span>
                     </div>
                     <div class="input-table-actions">
-                        <button class="btn-view" onclick="adminPanel.editInputTable('${table.id}')"><i class="fas fa-edit"></i></button>
-                        <button class="btn-delete" onclick="adminPanel.deleteInputTable('${table.id}')"><i class="fas fa-trash"></i></button>
+                        <button onclick="adminPanel.deleteInputTable('${table.id}')"><i class="fas fa-trash"></i></button>
                     </div>
                 </div>
             `;
         }).join('');
     }
 
-    openInputTableModal(tableId = null) {
-        const form = document.getElementById('input-table-form');
-        const title = document.getElementById('input-table-modal-title');
-        const categorySelect = document.getElementById('input-table-category');
+    openInputTableModal() {
+        document.getElementById('input-table-form')?.reset();
+        document.getElementById('input-table-id').value = '';
         
-        form?.reset();
-        document.getElementById('input-table-id').value = tableId || '';
+        document.getElementById('input-table-category').innerHTML = '<option value="">Choose Category</option>' +
+            AdminState.categories.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
         
-        title.textContent = tableId ? 'Edit Input Table' : 'Add Input Table';
-        
-        if (categorySelect) {
-            categorySelect.innerHTML = '<option value="">Choose Category</option>' +
-                AdminState.categories.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
-        }
-        
-        if (tableId) {
-            const table = AdminState.inputTables.find(t => t.id === tableId);
-            if (table) {
-                document.getElementById('input-table-category').value = table.categoryId || '';
-                document.getElementById('input-table-name').value = table.name || '';
-                document.getElementById('input-table-placeholder').value = table.placeholder || '';
-                document.getElementById('input-table-required').checked = table.required !== false;
-            }
-        }
-        
-        if (typeof Modal !== 'undefined') Modal.open('input-table-modal');
-    }
-
-    editInputTable(tableId) {
-        this.openInputTableModal(tableId);
+        Modal.open('input-table-modal');
     }
 
     async saveInputTable(e) {
         e.preventDefault();
+        Loading.show('Saving input table...');
         
-        const id = document.getElementById('input-table-id').value;
         const categoryId = document.getElementById('input-table-category').value;
         const name = document.getElementById('input-table-name').value.trim();
         const placeholder = document.getElementById('input-table-placeholder').value.trim();
         const required = document.getElementById('input-table-required').checked;
         
         if (!categoryId || !name) {
-            if (typeof Toast !== 'undefined') Toast.warning('Required', 'Please fill all required fields');
+            Loading.hide();
+            Toast.warning('Required', 'Please fill all required fields');
             return;
         }
         
-        const tableData = {
-            id: id || 'input_' + Date.now(),
+        AdminState.inputTables.push({
+            id: 'input_' + Date.now(),
             categoryId,
             name,
             placeholder,
             required,
-            updatedAt: new Date().toISOString()
-        };
+            createdAt: new Date().toISOString()
+        });
         
-        if (id) {
-            const index = AdminState.inputTables.findIndex(t => t.id === id);
-            if (index !== -1) {
-                AdminState.inputTables[index] = { ...AdminState.inputTables[index], ...tableData };
-            }
-        } else {
-            tableData.createdAt = new Date().toISOString();
-            AdminState.inputTables.push(tableData);
-        }
+        await this.saveData('inputTables');
         
-        AdminStorage.set('inputTables', AdminState.inputTables);
-        if (typeof Modal !== 'undefined') Modal.close('input-table-modal');
-        if (typeof Toast !== 'undefined') Toast.success('Success', 'Input table saved successfully');
+        Loading.hide();
+        Modal.close('input-table-modal');
+        Toast.success('Success', 'Input table saved');
         this.loadInputTables();
     }
 
-    deleteInputTable(tableId) {
+    async deleteInputTable(tableId) {
         if (!confirm('Delete this input table?')) return;
         
+        Loading.show('Deleting...');
         AdminState.inputTables = AdminState.inputTables.filter(t => t.id !== tableId);
-        AdminStorage.set('inputTables', AdminState.inputTables);
-        if (typeof Toast !== 'undefined') Toast.success('Deleted', 'Input table deleted successfully');
+        await this.saveData('inputTables');
+        Loading.hide();
+        
+        Toast.success('Deleted', 'Input table deleted');
         this.loadInputTables();
     }
 
     // ============================================
-    // Announcements, Broadcast, Banned Users, Settings
+    // Announcements & Settings
     // ============================================
 
     loadAnnouncements() {
@@ -1846,13 +1780,14 @@ class AdminPanel {
 
     async saveAnnouncement(e) {
         e.preventDefault();
-        const text = document.getElementById('announcement-text').value.trim();
+        Loading.show('Saving announcement...');
         
-        AdminState.settings.announcement = text;
-        AdminStorage.set('settings', AdminState.settings);
+        AdminState.settings.announcement = document.getElementById('announcement-text').value.trim();
+        await this.saveData('settings');
         
-        document.getElementById('announcement-preview').innerHTML = `<p>${text || 'No announcement set'}</p>`;
-        if (typeof Toast !== 'undefined') Toast.success('Saved', 'Announcement updated successfully');
+        Loading.hide();
+        document.getElementById('announcement-preview').innerHTML = `<p>${AdminState.settings.announcement || 'No announcement set'}</p>`;
+        Toast.success('Saved', 'Announcement updated');
     }
 
     loadBroadcast() {
@@ -1862,22 +1797,27 @@ class AdminPanel {
     async sendBroadcast(e) {
         e.preventDefault();
         const message = document.getElementById('broadcast-message').value.trim();
-        
         if (!message) {
-            if (typeof Toast !== 'undefined') Toast.warning('Required', 'Please enter a message');
+            Toast.warning('Required', 'Please enter a message');
             return;
         }
         
-        if (!confirm(`Send this message to ${AdminState.users.length} users?`)) return;
+        if (!confirm(`Send to ${AdminState.users.length} users?`)) return;
         
-        // In production, this would call the Telegram API
-        if (typeof Loading !== 'undefined') Loading.show('Sending broadcast...');
+        Loading.show('Sending broadcast...');
         
-        setTimeout(() => {
-            if (typeof Loading !== 'undefined') Loading.hide();
-            if (typeof Toast !== 'undefined') Toast.success('Sent', `Broadcast sent to ${AdminState.users.length} users`);
-            document.getElementById('broadcast-form').reset();
-        }, 2000);
+        // Save to broadcasts history
+        AdminState.broadcasts.push({
+            id: 'bc_' + Date.now(),
+            message,
+            sentAt: new Date().toISOString(),
+            recipientCount: AdminState.users.length
+        });
+        await this.saveData('broadcasts');
+        
+        Loading.hide();
+        Toast.success('Sent', `Broadcast sent to ${AdminState.users.length} users`);
+        document.getElementById('broadcast-form').reset();
     }
 
     loadBannedUsers() {
@@ -1890,41 +1830,37 @@ class AdminPanel {
         }
         
         container.innerHTML = AdminState.bannedUsers.map(user => `
-            <div class="banned-user-card" data-user-id="${user.id}">
-                <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(user.firstName || 'U')}&background=EF4444&color=fff" alt="" class="banned-user-avatar">
-                <div class="banned-user-info">
-                    <h4>${user.firstName || ''} ${user.lastName || ''} (@${user.username || 'N/A'})</h4>
-                    <div class="reason">Reason: ${user.reason || 'No reason specified'}</div>
-                    <div class="date">Banned: ${this.formatDate(user.bannedAt, 'datetime')}</div>
-                </div>
-                <button class="unban-btn" onclick="adminPanel.unbanUser('${user.id}')"><i class="fas fa-user-check"></i> Unban</button>
+            <div class="banned-user-card">
+                <span>${user.firstName || ''} ${user.lastName || ''}</span>
+                <button onclick="adminPanel.unbanUser('${user.id}')"><i class="fas fa-user-check"></i> Unban</button>
             </div>
         `).join('');
     }
 
-    unbanUser(userId) {
+    async unbanUser(userId) {
         if (!confirm('Unban this user?')) return;
         
+        Loading.show('Unbanning...');
         AdminState.bannedUsers = AdminState.bannedUsers.filter(u => String(u.id) !== String(userId));
-        AdminStorage.set('bannedUsers', AdminState.bannedUsers);
-        if (typeof Toast !== 'undefined') Toast.success('Unbanned', 'User has been unbanned');
+        await this.saveData('bannedUsers');
+        Loading.hide();
+        
+        Toast.success('Unbanned', 'User has been unbanned');
         this.loadBannedUsers();
     }
 
-    loadSettings() {
+    loadSettingsPage() {
         document.getElementById('site-name').value = AdminState.settings.siteName || 'Mafia Gaming Shop';
         
         if (AdminState.settings.logo) {
             document.getElementById('logo-preview-img').src = AdminState.settings.logo;
             document.getElementById('logo-preview')?.classList.remove('hidden');
         }
-        
-        const themeRadio = document.querySelector(`input[name="theme"][value="${AdminState.settings.theme || 'dark'}"]`);
-        if (themeRadio) themeRadio.checked = true;
     }
 
     async saveSettings(e) {
         e.preventDefault();
+        Loading.show('Saving settings...');
         
         const siteName = document.getElementById('site-name').value.trim();
         const theme = document.querySelector('input[name="theme"]:checked')?.value || 'dark';
@@ -1933,20 +1869,45 @@ class AdminPanel {
         
         let logo = AdminState.settings.logo || '';
         if (logoInput?.files[0]) {
-            if (typeof FileUpload !== 'undefined' && FileUpload.toBase64) {
-                logo = await FileUpload.toBase64(logoInput.files[0]);
-            } else {
-                logo = await this.fileToBase64(logoInput.files[0]);
-            }
-        } else if (previewImg?.src && previewImg.src !== window.location.href) {
+            logo = await this.fileToBase64(logoInput.files[0]);
+        } else if (previewImg?.src) {
             logo = previewImg.src;
         }
         
         AdminState.settings = { ...AdminState.settings, siteName, theme, logo };
-        AdminStorage.set('settings', AdminState.settings);
+        await this.saveData('settings');
         
         this.updateAdminInfo();
-        if (typeof Toast !== 'undefined') Toast.success('Saved', 'Settings saved successfully');
+        Loading.hide();
+        Toast.success('Saved', 'Settings saved successfully');
+    }
+
+    banCurrentUser() {
+        if (AdminState.selectedUser) {
+            this.banUser(AdminState.selectedUser.id);
+            Modal.close('user-details-modal');
+        }
+    }
+
+    async banUser(userId) {
+        if (!confirm('Ban this user?')) return;
+        
+        Loading.show('Banning user...');
+        
+        const user = AdminState.users.find(u => String(u.id) === String(userId));
+        if (user) {
+            AdminState.bannedUsers.push({
+                id: user.id,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                username: user.username,
+                bannedAt: new Date().toISOString()
+            });
+            await this.saveData('bannedUsers');
+        }
+        
+        Loading.hide();
+        Toast.success('Banned', 'User has been banned');
     }
 }
 
@@ -1963,4 +1924,8 @@ document.addEventListener('DOMContentLoaded', () => {
     window.adminPanel = adminPanel;
 });
 
-console.log('✅ Admin.js loaded (Fixed - No duplicate declarations)');
+// Export for user dashboard
+window.JSONBinDB = JSONBinDB;
+window.CONFIG = CONFIG;
+
+console.log('✅ Admin.js v3.0.0 loaded (JSONBin Integration)');
