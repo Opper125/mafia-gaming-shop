@@ -1,6 +1,6 @@
 /* ============================================
    SETTINGS API
-   Mafia Gaming Shop
+   Mafia Gaming Shop - Fixed for Real-Time Sync
    ============================================ */
 
 const JSONBIN_API = 'https://api.jsonbin.io/v3';
@@ -18,9 +18,15 @@ module.exports = async (req, res) => {
     try {
         if (req.method === 'GET') {
             if (!binId) return res.status(400).json({ error: 'Bin ID required' });
+            
             const response = await fetch(`${JSONBIN_API}/b/${binId}/latest`, {
                 headers: { 'X-Master-Key': MASTER_KEY }
             });
+            
+            if (!response.ok) {
+                return res.status(response.status).json({ error: `JSONBin error: ${response.status}` });
+            }
+            
             const data = await response.json();
             return res.status(200).json(data.record || {});
         }
@@ -29,16 +35,22 @@ module.exports = async (req, res) => {
             const { settings } = req.body;
             if (!binId || !settings) return res.status(400).json({ error: 'Bin ID and settings required' });
 
-            await fetch(`${JSONBIN_API}/b/${binId}`, {
+            const updateRes = await fetch(`${JSONBIN_API}/b/${binId}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json', 'X-Master-Key': MASTER_KEY },
                 body: JSON.stringify({ ...settings, updatedAt: new Date().toISOString() })
             });
+            
+            if (!updateRes.ok) {
+                return res.status(500).json({ error: 'Failed to update settings' });
+            }
+            
             return res.status(200).json({ success: true });
         }
 
         return res.status(405).json({ error: 'Method not allowed' });
     } catch (error) {
+        console.error('Settings API error:', error);
         return res.status(500).json({ error: error.message });
     }
 };
