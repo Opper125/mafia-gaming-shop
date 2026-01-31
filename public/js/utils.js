@@ -4,156 +4,29 @@
    ============================================ */
 
 // ============================================
-// JSONBin API Functions
+// JSONBin API Functions - DEPRECATED
+// Use Vercel API Routes instead: /api/products, /api/categories, /api/orders, /api/users
 // ============================================
 
 const JSONBin = {
-    baseUrl: 'https://api.jsonbin.io/v3',
-    masterKey: '$2a$10$nweVi.eOGDsyC7uEsN/OxeLcIr8uhyN8x86AiIo8koJ.B7MX1I5Bu',
-    accessKey: '$2a$10$tNEyDbr/ez8kUETcZBK.6OwFCcaAE4bjDV8EHQtjz3jbgjs8jqbrS',
+    // This object is deprecated - kept for backward compatibility only
+    // All API calls now go through Vercel API routes for security
     
-    // Bin IDs - These will be created on first run
-    bins: {
-        users: null,
-        categories: null,
-        products: null,
-        orders: null,
-        payments: null,
-        bannersType1: null,
-        bannersType2: null,
-        inputTables: null,
-        settings: null,
-        topupRequests: null,
-        bannedUsers: null,
-        announcements: null
-    },
-
-    // Initialize bins
+    baseUrl: '/api',
+    
     async init() {
-        try {
-            // Try to get existing bin IDs from storage
-            const storedBins = await TelegramWebApp.CloudStorage.getItem('jsonbin_ids');
-            if (storedBins) {
-                this.bins = { ...this.bins, ...storedBins };
-                console.log('✅ JSONBin IDs loaded from storage');
-                return true;
-            }
-            
-            // Create new bins if not exists
-            await this.createAllBins();
-            return true;
-        } catch (error) {
-            console.error('❌ Error initializing JSONBin:', error);
-            return false;
-        }
+        console.warn('⚠️ JSONBin.init() is deprecated. Use Database service instead.');
+        return true;
     },
 
-    // Create all bins
-    async createAllBins() {
-        const binConfigs = [
-            { name: 'users', data: [] },
-            { name: 'categories', data: [] },
-            { name: 'products', data: [] },
-            { name: 'orders', data: [] },
-            { name: 'payments', data: [] },
-            { name: 'bannersType1', data: [] },
-            { name: 'bannersType2', data: [] },
-            { name: 'inputTables', data: [] },
-            { name: 'settings', data: { siteName: 'Mafia Gaming Shop', logo: '', theme: 'dark', announcement: '' } },
-            { name: 'topupRequests', data: [] },
-            { name: 'bannedUsers', data: [] },
-            { name: 'announcements', data: { text: 'Welcome to Mafia Gaming Shop! Best prices for UC & Diamonds!' } }
-        ];
-
-        for (const config of binConfigs) {
-            if (!this.bins[config.name]) {
-                try {
-                    const bin = await this.createBin(config.name, config.data);
-                    this.bins[config.name] = bin.metadata.id;
-                } catch (error) {
-                    console.error(`Error creating bin ${config.name}:`, error);
-                }
-            }
-        }
-
-        // Save bin IDs to storage
-        await TelegramWebApp.CloudStorage.setItem('jsonbin_ids', this.bins);
-        console.log('✅ All JSONBin bins created and saved');
-    },
-
-    // Create a new bin
-    async createBin(name, initialData = {}) {
-        const response = await fetch(`${this.baseUrl}/b`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Master-Key': this.masterKey,
-                'X-Bin-Name': `mafia-gaming-${name}`
-            },
-            body: JSON.stringify(initialData)
-        });
-        
-        if (!response.ok) {
-            throw new Error(`Failed to create bin: ${response.statusText}`);
-        }
-        
-        return await response.json();
-    },
-
-    // Read bin data
     async read(binName) {
-        const binId = this.bins[binName];
-        if (!binId) {
-            console.error(`Bin ${binName} not found`);
-            return null;
-        }
-
-        try {
-            const response = await fetch(`${this.baseUrl}/b/${binId}/latest`, {
-                headers: {
-                    'X-Master-Key': this.masterKey
-                }
-            });
-
-            if (!response.ok) {
-                throw new Error(`Failed to read bin: ${response.statusText}`);
-            }
-
-            const data = await response.json();
-            return data.record;
-        } catch (error) {
-            console.error(`Error reading bin ${binName}:`, error);
-            return null;
-        }
+        console.warn('⚠️ JSONBin.read() is deprecated. Use Database service instead.');
+        return null;
     },
 
-    // Update bin data
     async update(binName, data) {
-        const binId = this.bins[binName];
-        if (!binId) {
-            console.error(`Bin ${binName} not found`);
-            return false;
-        }
-
-        try {
-            const response = await fetch(`${this.baseUrl}/b/${binId}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Master-Key': this.masterKey
-                },
-                body: JSON.stringify(data)
-            });
-
-            if (!response.ok) {
-                throw new Error(`Failed to update bin: ${response.statusText}`);
-            }
-
-            return true;
-        } catch (error) {
-            console.error(`Error updating bin ${binName}:`, error);
-            return false;
-        }
+        console.warn('⚠️ JSONBin.update() is deprecated. Use Database service instead.');
+        return false;
     }
 };
 
@@ -207,11 +80,6 @@ const Toast = {
 
         // Add to container
         this.container.appendChild(toast);
-
-        // Haptic feedback
-        if (window.TelegramWebApp) {
-            TelegramWebApp.haptic('notification', type === 'success' ? 'success' : type === 'error' ? 'error' : 'warning');
-        }
 
         // Auto remove
         if (duration > 0) {
@@ -303,11 +171,6 @@ const Modal = {
         if (modal) {
             modal.classList.add('active');
             document.body.style.overflow = 'hidden';
-            
-            // Haptic feedback
-            if (window.TelegramWebApp) {
-                TelegramWebApp.haptic('impact', 'light');
-            }
         }
     },
 
@@ -549,7 +412,7 @@ const FileUpload = {
             body: JSON.stringify({
                 file: base64,
                 type: type,
-                initData: window.TelegramWebApp.initData()
+                initData: window.TelegramWebApp ? window.TelegramWebApp.initData() : null
             })
         });
 
@@ -674,7 +537,6 @@ async function copyToClipboard(text) {
         }
         
         Toast.success('Copied!', 'Text copied to clipboard');
-        TelegramWebApp.haptic('notification', 'success');
         return true;
     } catch (error) {
         console.error('Copy failed:', error);
