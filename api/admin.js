@@ -3,8 +3,10 @@
    Mafia Gaming Shop - Fixed for Real-Time Sync
    ============================================ */
 
-const { notifyAdmin } = require('./telegram');
-const { verifyToken } = require('./auth');
+const telegraphModule = require('./telegram');
+const authModule = require('./auth');
+const { notifyAdmin, broadcastMessage } = telegraphModule;
+const { verifyToken } = authModule;
 
 const ADMIN_TELEGRAM_ID = parseInt(process.env.ADMIN_TELEGRAM_ID || '1538232799');
 const JSONBIN_API = 'https://api.jsonbin.io/v3';
