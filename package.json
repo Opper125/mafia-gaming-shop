@@ -9,7 +9,7 @@
     "node-fetch": "^2.7.0"
   },
   "engines": {
-    "node": "20.x"
+    "node": "24.x"
   },
   "author": "Mafia Gaming Shop",
   "license": "MIT"
