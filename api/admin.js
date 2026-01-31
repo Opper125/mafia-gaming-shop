@@ -1,6 +1,6 @@
 /* ============================================
    ADMIN API
-   Mafia Gaming Shop
+   Mafia Gaming Shop - Fixed for Real-Time Sync
    ============================================ */
 
 const { notifyAdmin } = require('./telegram');
@@ -9,6 +9,10 @@ const { verifyToken } = require('./auth');
 const ADMIN_TELEGRAM_ID = parseInt(process.env.ADMIN_TELEGRAM_ID || '1538232799');
 const JSONBIN_API = 'https://api.jsonbin.io/v3';
 const MASTER_KEY = process.env.JSONBIN_MASTER_KEY || '$2a$10$nweVi.eOGDsyC7uEsN/OxeLcIr8uhyN8x86AiIo8koJ.B7MX1I5Bu';
+
+function ensureArray(data) {
+    return Array.isArray(data) ? data : [];
+}
 
 module.exports = async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -44,25 +48,38 @@ module.exports = async (req, res) => {
                 return res.status(400).json({ error: 'User ID and bin ID required' });
             }
 
-            const getRes = await fetch(`${JSONBIN_API}/b/${bannedUsersBinId}/latest`, {
-                headers: { 'X-Master-Key': MASTER_KEY }
-            });
-            const getData = await getRes.json();
-            let bannedUsers = getData.record || [];
+            try {
+                const getRes = await fetch(`${JSONBIN_API}/b/${bannedUsersBinId}/latest`, {
+                    headers: { 'X-Master-Key': MASTER_KEY }
+                });
+                
+                if (!getRes.ok) {
+                    return res.status(500).json({ error: 'Failed to fetch banned users' });
+                }
+                
+                const getData = await getRes.json();
+                let bannedUsers = ensureArray(getData.record);
 
-            bannedUsers.push({
-                id: userId,
-                reason: reason || 'Banned by admin',
-                bannedAt: new Date().toISOString()
-            });
+                bannedUsers.push({
+                    id: userId,
+                    reason: reason || 'Banned by admin',
+                    bannedAt: new Date().toISOString()
+                });
 
-            await fetch(`${JSONBIN_API}/b/${bannedUsersBinId}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json', 'X-Master-Key': MASTER_KEY },
-                body: JSON.stringify(bannedUsers)
-            });
+                const updateRes = await fetch(`${JSONBIN_API}/b/${bannedUsersBinId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'X-Master-Key': MASTER_KEY },
+                    body: JSON.stringify(bannedUsers)
+                });
+                
+                if (!updateRes.ok) {
+                    return res.status(500).json({ error: 'Failed to ban user' });
+                }
 
-            return res.status(200).json({ success: true });
+                return res.status(200).json({ success: true });
+            } catch (error) {
+                return res.status(500).json({ error: error.message });
+            }
         }
 
         // Unban user
@@ -73,19 +90,32 @@ module.exports = async (req, res) => {
                 return res.status(400).json({ error: 'User ID and bin ID required' });
             }
 
-            const getRes = await fetch(`${JSONBIN_API}/b/${bannedUsersBinId}/latest`, {
-                headers: { 'X-Master-Key': MASTER_KEY }
-            });
-            const getData = await getRes.json();
-            let bannedUsers = (getData.record || []).filter(u => u.id != userId);
+            try {
+                const getRes = await fetch(`${JSONBIN_API}/b/${bannedUsersBinId}/latest`, {
+                    headers: { 'X-Master-Key': MASTER_KEY }
+                });
+                
+                if (!getRes.ok) {
+                    return res.status(500).json({ error: 'Failed to fetch banned users' });
+                }
+                
+                const getData = await getRes.json();
+                let bannedUsers = ensureArray(getData.record).filter(u => u.id != userId);
 
-            await fetch(`${JSONBIN_API}/b/${bannedUsersBinId}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json', 'X-Master-Key': MASTER_KEY },
-                body: JSON.stringify(bannedUsers)
-            });
+                const updateRes = await fetch(`${JSONBIN_API}/b/${bannedUsersBinId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'X-Master-Key': MASTER_KEY },
+                    body: JSON.stringify(bannedUsers)
+                });
+                
+                if (!updateRes.ok) {
+                    return res.status(500).json({ error: 'Failed to unban user' });
+                }
 
-            return res.status(200).json({ success: true });
+                return res.status(200).json({ success: true });
+            } catch (error) {
+                return res.status(500).json({ error: error.message });
+            }
         }
 
         return res.status(400).json({ error: 'Invalid action' });
