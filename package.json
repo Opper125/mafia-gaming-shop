@@ -12,7 +12,7 @@
     "crypto": "^1.0.1"
   },
   "engines": {
-    "node": "18.x"
+    "node": "24.x"
   },
   "author": "Mafia Gaming Shop",
   "license": "MIT"
